@@ -22,24 +22,137 @@ Soroban: Modern Rust-based smart contracts with WebAssembly
 Scalability: Thousands of transactions per second
 Developer Friendly: Excellent tooling and documentation
 🏗️ Architecture
-Core Contracts
-task-bounty/
-├── contracts/
-│   ├── task_bounty/          # Main bounty management
-│   │   ├── src/
-│   │   │   ├── lib.rs        # Contract entry points
-│   │   │   ├── types.rs      # Data structures
-│   │   │   ├── storage.rs    # Storage helpers
-│   │   │   ├── task.rs       # Task management
-│   │   │   ├── submission.rs # Submission handling
-│   │   │   └── events.rs     # Event definitions
-│   │   └── Cargo.toml
-│   └── dispute_resolver/     # Dispute handling
-│       ├── src/
-│       │   ├── lib.rs
-│       │   └── types.rs
-│       └── Cargo.toml
-└── Cargo.toml
+
+### System Overview
+
+```
+┌─────────────────────────────────────────────────────────────────────┐
+│                         Frontend (Next.js)                          │
+│   Task Board  │  Create Task  │  Submit Work  │  Wallet Connect     │
+└──────────────────────────┬──────────────────────────────────────────┘
+                           │  Stellar Wallets Kit (RPC calls)
+                           ▼
+┌─────────────────────────────────────────────────────────────────────┐
+│                    Stellar Network (Soroban RPC)                    │
+└──────────┬──────────────────────────────────┬───────────────────────┘
+           │                                  │
+           ▼                                  ▼
+┌──────────────────────┐          ┌───────────────────────┐
+│   TaskBounty         │  calls   │   DisputeResolver     │
+│   Contract           │ ───────► │   Contract            │
+│                      │          │                       │
+│  • create_task       │          │  • raise_dispute      │
+│  • submit_work       │          │  • resolve_dispute    │
+│  • approve_submission│          │  • manage_arbitrators │
+│  • reject_submission │          └───────────────────────┘
+│  • cancel_task       │
+│  • get_task          │
+│  • get_submission    │
+└──────────────────────┘
+           │
+           │  token transfers via SAC interface
+           ▼
+┌──────────────────────┐
+│  Token Contract      │
+│  (XLM / SAC token)   │
+│  Escrowed rewards    │
+└──────────────────────┘
+```
+
+### Task Lifecycle
+
+```
+                        ┌─────────┐
+                        │  OPEN   │ ◄── create_task() — reward escrowed
+                        └────┬────┘
+                             │ submit_work()
+                             ▼
+                      ┌────────────┐
+                      │ IN PROGRESS│
+                      └─────┬──────┘
+              ┌─────────────┤
+              │             │
+              ▼             ▼
+        ┌──────────┐  ┌──────────┐
+        │ APPROVED │  │ REJECTED │
+        │ (payout) │  │ (re-open)│
+        └──────────┘  └──────────┘
+              │
+              │ raise_dispute()
+              ▼
+        ┌──────────┐
+        │ DISPUTED │ ──► DisputeResolver ──► COMPLETED or refund
+        └──────────┘
+
+       poster cancels anytime before approval
+              │
+              ▼
+        ┌──────────┐
+        │CANCELLED │ (reward refunded to poster)
+        └──────────┘
+```
+
+### Task Creation & Payout Flow
+
+```
+Poster                  Contract              Token (SAC)
+  │                        │                      │
+  │── create_task() ──────►│                      │
+  │                        │── transfer_from() ──►│  escrow reward
+  │◄── task_id ────────────│                      │
+  │                        │                      │
+Contributor               │                      │
+  │── submit_work() ──────►│                      │
+  │◄── submission_id ──────│                      │
+  │                        │                      │
+Poster                    │                      │
+  │── approve_submission()►│                      │
+  │                        │── transfer() ───────►│  pay contributor
+  │                        │   emit Approved      │
+  │◄── tx confirmed ───────│                      │
+```
+
+### Dispute Resolution Flow
+
+```
+Contributor           TaskBounty           DisputeResolver      Arbitrator
+     │                    │                      │                   │
+     │── raise_dispute() ►│                      │                   │
+     │                    │── forward dispute ──►│                   │
+     │                    │                      │◄── resolve() ─────│
+     │                    │                      │    (true/false)   │
+     │                    │◄── resolution ────────│                   │
+     │                    │                      │                   │
+     │                    │  if true: pay contrib │                   │
+     │                    │  if false: refund poster                  │
+```
+
+### Repository Structure
+
+```
+Task-Bounty/
+├── contract/
+│   └── contracts/
+│       └── hello-world/        # Soroban contract
+│           └── src/
+│               ├── lib.rs      # Contract entry points & public API
+│               ├── types.rs    # Task, Submission, Dispute, Error types
+│               ├── storage.rs  # Storage key helpers
+│               ├── task.rs     # Task creation & cancellation
+│               ├── submission.rs  # Submit, approve, reject
+│               ├── dispute.rs  # Dispute handling
+│               └── events.rs   # Event emission helpers
+├── frontend/                   # Next.js frontend
+│   └── src/
+│       ├── app/                # Next.js app router pages
+│       ├── components/         # Shared UI components
+│       ├── hooks/              # Stellar wallet integration
+│       └── lib/                # Stellar RPC utilities
+├── CONTRIBUTING.md
+├── SETUP.md
+├── CONTRACT_API.md
+└── README.md
+```
 Key Features
 Task Posting: Create tasks with escrowed rewards (XLM or any Stellar token)
 Work Submission: Contributors submit IPFS/Arweave links to their work
