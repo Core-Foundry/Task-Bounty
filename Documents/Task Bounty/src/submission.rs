@@ -1,7 +1,7 @@
-use soroban_sdk::{Address, Env, String, token};
-use crate::types::{Submission, SubmissionStatus, TaskStatus, Error};
-use crate::storage;
 use crate::events;
+use crate::storage;
+use crate::types::{Error, Submission, SubmissionStatus, TaskStatus};
+use soroban_sdk::{token, Address, Env, String};
 
 /// Submit work for a task
 pub fn submit_work(
@@ -68,12 +68,7 @@ pub fn submit_work(
 }
 
 /// Approve a submission and release payment
-pub fn approve_submission(
-    env: &Env,
-    task_id: u64,
-    submission_id: u64,
-    poster: Address,
-) {
+pub fn approve_submission(env: &Env, task_id: u64, submission_id: u64, poster: Address) {
     // Get task
     if !storage::task_exists(env, task_id) {
         panic_with_error!(env, Error::TaskNotFound);
@@ -115,7 +110,13 @@ pub fn approve_submission(
 
     // Update statuses
     submission.status = SubmissionStatus::Approved;
-    task.status = TaskStatus::Completed;
+    task.approved_count += 1;
+
+    if task.approved_count >= task.max_submissions {
+        task.status = TaskStatus::Completed;
+    } else {
+        task.status = TaskStatus::InProgress;
+    }
 
     storage::set_submission(env, &submission);
     storage::set_task(env, &task);
@@ -123,16 +124,17 @@ pub fn approve_submission(
     // Transfer reward to contributor
     let contract_address = env.current_contract_address();
     let token_client = token::Client::new(env, &task.token);
-    token_client.transfer(&contract_address, &submission.contributor, &task.reward);
+    let approved_slots = task.max_submissions as i128;
+    let base_payout = task.reward / approved_slots;
+    let payout = if task.approved_count >= task.max_submissions {
+        task.reward - (base_payout * (approved_slots - 1))
+    } else {
+        base_payout
+    };
+    token_client.transfer(&contract_address, &submission.contributor, &payout);
 
     // Emit event
-    events::emit_submission_approved(
-        env,
-        task_id,
-        submission_id,
-        &submission.contributor,
-        task.reward,
-    );
+    events::emit_submission_approved(env, task_id, submission_id, &submission.contributor, payout);
 }
 
 /// Reject a submission
