@@ -5,14 +5,21 @@ use soroban_sdk::{
     testutils::{Address as _, Ledger, LedgerInfo},
     token, Address, Env, String,
 };
-use types::{TaskStatus, SubmissionStatus};
+use types::{SubmissionStatus, TaskStatus};
 
 fn create_token_contract<'a>(env: &Env, admin: &Address) -> token::Client<'a> {
     let token_address = env.register_stellar_asset_contract(admin.clone());
     token::Client::new(env, &token_address)
 }
 
-fn setup_test() -> (Env, Address, Address, Address, token::Client<'static>, Address) {
+fn setup_test() -> (
+    Env,
+    Address,
+    Address,
+    Address,
+    token::Client<'static>,
+    Address,
+) {
     let env = Env::default();
     env.mock_all_auths();
 
@@ -63,6 +70,7 @@ fn test_create_task() {
     assert_eq!(task.reward, reward);
     assert_eq!(task.deadline, deadline);
     assert_eq!(task.max_submissions, 3);
+    assert_eq!(task.approved_count, 0);
     assert_eq!(task.status, TaskStatus::Open);
 }
 
@@ -231,7 +239,10 @@ fn test_approve_submission() {
 
     // Check payment
     let contributor_balance_after = token_client.balance(&contributor);
-    assert_eq!(contributor_balance_after, contributor_balance_before + reward);
+    assert_eq!(
+        contributor_balance_after,
+        contributor_balance_before + reward
+    );
 
     // Check statuses
     let task = client.get_task(&task_id);
@@ -239,6 +250,69 @@ fn test_approve_submission() {
 
     let submission = client.get_submission(&submission_id);
     assert_eq!(submission.status, SubmissionStatus::Approved);
+}
+
+#[test]
+fn test_multiple_winners_share_reward() {
+    let (env, poster, contributor, _, token_client, contract_id) = setup_test();
+    let client = TaskBountyContractClient::new(&env, &contract_id);
+
+    let reward = 9_000_000;
+
+    let task_id = client.create_task(
+        &poster,
+        &String::from_str(&env, "Task"),
+        &String::from_str(&env, "Description"),
+        &token_client.address,
+        &reward,
+        &(env.ledger().timestamp() + 86400),
+        &3,
+    );
+
+    let contributor2 = Address::generate(&env);
+    let contributor3 = Address::generate(&env);
+
+    let sub1 = client.submit_work(
+        &task_id,
+        &contributor,
+        &String::from_str(&env, "ipfs://1"),
+        &String::from_str(&env, "Work 1"),
+    );
+    let sub2 = client.submit_work(
+        &task_id,
+        &contributor2,
+        &String::from_str(&env, "ipfs://2"),
+        &String::from_str(&env, "Work 2"),
+    );
+    let sub3 = client.submit_work(
+        &task_id,
+        &contributor3,
+        &String::from_str(&env, "ipfs://3"),
+        &String::from_str(&env, "Work 3"),
+    );
+
+    let share = reward / 3;
+    let first_before = token_client.balance(&contributor);
+    let second_before = token_client.balance(&contributor2);
+    let third_before = token_client.balance(&contributor3);
+
+    client.approve_submission(&task_id, &sub1, &poster);
+    let task_after_first = client.get_task(&task_id);
+    assert_eq!(task_after_first.status, TaskStatus::InProgress);
+    assert_eq!(task_after_first.approved_count, 1);
+    assert_eq!(token_client.balance(&contributor), first_before + share);
+
+    client.approve_submission(&task_id, &sub2, &poster);
+    let task_after_second = client.get_task(&task_id);
+    assert_eq!(task_after_second.status, TaskStatus::InProgress);
+    assert_eq!(task_after_second.approved_count, 2);
+    assert_eq!(token_client.balance(&contributor2), second_before + share);
+
+    client.approve_submission(&task_id, &sub3, &poster);
+    let task_after_third = client.get_task(&task_id);
+    assert_eq!(task_after_third.status, TaskStatus::Completed);
+    assert_eq!(task_after_third.approved_count, 3);
+    assert_eq!(token_client.balance(&contributor3), third_before + share);
 }
 
 #[test]
