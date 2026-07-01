@@ -23,6 +23,7 @@ Thank you for your interest in contributing to TaskBounty — a decentralized ta
 - Provide constructive, actionable feedback
 - Communicate early if you're blocked — create a draft PR rather than going silent
 - Maximum ETA for claimed issues: **48 hours**. After 24 hours, a draft PR or progress update is expected
+- Contributions to this repository are accepted under the project's [MIT License](./LICENSE)
 
 ---
 
