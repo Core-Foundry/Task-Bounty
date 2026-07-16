@@ -23,11 +23,16 @@ export function buildHealthReport(
   now: Date = new Date(),
   uptimeSeconds: number = process.uptime(),
 ): HealthReport {
+  const safeNow = Number.isNaN(now.getTime()) ? new Date() : now;
+  const safeUptime = Number.isFinite(uptimeSeconds)
+    ? Math.max(0, Math.round(uptimeSeconds))
+    : 0;
+
   return {
     status: "ok",
     service: SERVICE_NAME,
-    timestamp: now.toISOString(),
-    uptime: Math.max(0, Math.round(uptimeSeconds)),
+    timestamp: safeNow.toISOString(),
+    uptime: safeUptime,
     environment: process.env.NODE_ENV ?? "development",
   };
 }

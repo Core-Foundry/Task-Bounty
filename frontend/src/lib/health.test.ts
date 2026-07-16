@@ -43,6 +43,24 @@ describe("buildHealthReport", () => {
     expect(report.uptime).toBe(0);
   });
 
+  it("treats NaN and Infinity uptime as zero", () => {
+    expect(buildHealthReport(new Date(), Number.NaN).uptime).toBe(0);
+    expect(buildHealthReport(new Date(), Number.POSITIVE_INFINITY).uptime).toBe(
+      0,
+    );
+    expect(buildHealthReport(new Date(), Number.NEGATIVE_INFINITY).uptime).toBe(
+      0,
+    );
+  });
+
+  it("falls back when given an invalid Date", () => {
+    const report = buildHealthReport(new Date("not-a-date"), 1);
+
+    expect(report.status).toBe("ok");
+    expect(new Date(report.timestamp).getTime()).not.toBeNaN();
+    expect(report.uptime).toBe(1);
+  });
+
   it("reports the runtime environment", () => {
     const report = buildHealthReport();
 
