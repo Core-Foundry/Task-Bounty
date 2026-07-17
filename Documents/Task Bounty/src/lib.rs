@@ -221,6 +221,8 @@ impl TaskBountyContract {
     /// Search task titles and descriptions for a query string.
     pub fn search_tasks(env: Env, query_str: String) -> Vec<Task> {
         query::search_tasks(&env, query_str)
+    }
+
     /// Filter tasks by category.
     pub fn get_tasks_by_category(env: Env, category: String) -> Vec<Task> {
         query::get_tasks_by_category(&env, category)
@@ -229,11 +231,6 @@ impl TaskBountyContract {
     /// Filter tasks by custom tag.
     pub fn get_tasks_by_tag(env: Env, tag: String) -> Vec<Task> {
         query::get_tasks_by_tag(&env, tag)
-    }
-
-    /// Filter tasks by status.
-    pub fn get_tasks_by_status(env: Env, status: TaskStatus) -> Vec<Task> {
-        query::get_tasks_by_status(&env, status)
     }
 
     /// Get submission details
