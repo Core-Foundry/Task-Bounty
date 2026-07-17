@@ -168,9 +168,12 @@ pub fn get_group_members(env: Env, id: BytesN<32>) -> Result<Vec<GroupMember>, E
 pub fn add_group_member(
     env: Env,
     id: BytesN<32>,
+    caller: Address,
     address: Address,
     percentage: u32,
 ) -> Result<(), Error> {
+    caller.require_auth();
+
     // Check if contract is paused
     if get_paused_status(&env) {
         return Err(Error::ContractPaused);
@@ -182,6 +185,11 @@ pub fn add_group_member(
         .persistent()
         .get(&key)
         .ok_or(Error::NotFound)?;
+
+    // Only the group creator may modify membership
+    if details.creator != caller {
+        return Err(Error::Unauthorized);
+    }
 
     // Check if already a member
     for member in details.members.iter() {
@@ -201,6 +209,13 @@ pub fn add_group_member(
 
     // Save updated details
     env.storage().persistent().set(&key, &details);
+
+    // Keep GroupMembers index in sync with details.members
+    let members_key = DataKey::GroupMembers(id);
+    env.storage()
+        .persistent()
+        .set(&members_key, &details.members);
+
     Ok(())
 }
 
@@ -542,13 +557,20 @@ pub fn get_total_usages_paid(env: Env, id: BytesN<32>) -> Result<u32, Error> {
     Ok(details.total_usages_paid)
 }
 
-pub fn reduce_usage(env: Env, id: BytesN<32>) -> Result<(), Error> {
+pub fn reduce_usage(env: Env, id: BytesN<32>, caller: Address) -> Result<(), Error> {
+    caller.require_auth();
+
     let key = DataKey::AutoShare(id);
     let mut details: AutoShareDetails = env
         .storage()
         .persistent()
         .get(&key)
         .ok_or(Error::NotFound)?;
+
+    // Only the group creator may consume usages for their group
+    if details.creator != caller {
+        return Err(Error::Unauthorized);
+    }
 
     if details.usage_count == 0 {
         return Err(Error::NoUsagesRemaining);
