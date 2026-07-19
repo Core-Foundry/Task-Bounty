@@ -40,7 +40,7 @@ export async function POST(request: Request) {
     return buildNoStoreJson(
       {
         ok: false,
-        error: validation.errors[0] || "Please check your upload and try again.",
+        error: "Invalid task submission upload.",
         details: validation.errors,
         limits: {
           maxFiles: MAX_TASK_SUBMISSION_FILES,

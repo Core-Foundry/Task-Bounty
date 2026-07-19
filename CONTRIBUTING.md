@@ -42,6 +42,14 @@ Pull requests to `main` run:
 
 - **Frontend CI** — lint + build ([`FRONTEND_CI_GUIDE.md`](./FRONTEND_CI_GUIDE.md))
 - **Contract CI** — `cargo fmt`, build, test, clippy
+- **Dependency vulnerability scan** — `pnpm audit` + `cargo audit` with downloadable reports ([`DEPENDENCY_SCANNING.md`](./DEPENDENCY_SCANNING.md))
+
+Run the dependency scanners locally before opening a PR that changes lockfiles:
+
+```bash
+./scripts/run-dependency-scan.sh
+```
+
 
 Frontend HTTP security headers are configured in Next.js and documented in [`SECURITY_HEADERS.md`](./SECURITY_HEADERS.md). Verify locally before changing header policy:
 
@@ -231,6 +239,7 @@ A PR template with the full checklist is automatically loaded when you open a PR
 - [ ] Tests added/updated and passing (`cargo test`)
 - [ ] No compiler warnings (`cargo clippy`)
 - [ ] Documentation updated if public API changed
+- [ ] Dependency changes reviewed against CI scan reports / Dependabot (see [DEPENDENCY_SCANNING.md](./DEPENDENCY_SCANNING.md))
 - [ ] Frontend security header changes verified (`pnpm test:security-headers` / see [SECURITY_HEADERS.md](./SECURITY_HEADERS.md))
 - [ ] PR description complete with issue reference
 - [ ] Branch is up to date with `main`

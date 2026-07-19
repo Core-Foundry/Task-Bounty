@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
 import { X } from "lucide-react";
 import Image from "next/image";
 
@@ -18,10 +18,12 @@ export function SharePopup({
   targetAmount,
 }: SharePopupProps) {
   const remainingAmount = targetAmount - amountRaised;
+  const closeButtonRef = useRef<HTMLButtonElement>(null);
 
   useEffect(() => {
     if (isOpen) {
       document.body.style.overflow = "hidden";
+      closeButtonRef.current?.focus();
       const handleEscape = (e: KeyboardEvent) => {
         if (e.key === "Escape") onClose();
       };
@@ -42,6 +44,7 @@ export function SharePopup({
       role="dialog"
       aria-modal="true"
       aria-labelledby="share-popup-title"
+      tabIndex={-1}
     >
       {/* Main popup container */}
       <div
@@ -56,9 +59,10 @@ export function SharePopup({
         <div className="relative w-full h-full bg-[#070A11]/90 border border-[#232542] rounded-lg backdrop-blur-sm overflow-hidden">
           {/* Close button */}
           <button
+            ref={closeButtonRef}
             type="button"
             onClick={onClose}
-            className="absolute top-4 right-4 z-20 text-gray-400 hover:text-white transition-colors p-2 rounded-full hover:bg-white/10"
+            className="absolute top-4 right-4 z-20 text-gray-400 hover:text-white transition-colors p-2 rounded-full hover:bg-white/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#92F2FF] focus-visible:ring-offset-2 focus-visible:ring-offset-[#070A11]"
             aria-label="Close popup"
           >
             <X size={24} />

@@ -53,7 +53,7 @@ export const ErrorCodes = {
 export type ErrorCode = keyof typeof ErrorCodes;
 
 // User-friendly error messages
-export const ErrorMessages: Record&lt;ErrorCode, string&gt; = {
+export const ErrorMessages: Record<string, string> = {
   // Wallet errors
   WALLET_NOT_CONNECTED: "Please connect your wallet to continue.",
   WALLET_CONNECTION_FAILED: "Failed to connect wallet. Please try again.",

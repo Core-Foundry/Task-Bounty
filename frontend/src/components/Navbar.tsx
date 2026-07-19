@@ -77,7 +77,12 @@ export function Navbar() {
       <div className="flex md:hidden items-center gap-3">
         <ConnectWalletButton />
         <button
+          type="button"
+          aria-label={isMobileMenuOpen ? "Close navigation menu" : "Open navigation menu"}
+          aria-expanded={isMobileMenuOpen}
+          aria-controls="mobile-navigation-menu"
           onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
+          className="inline-flex items-center justify-center p-3 rounded-full text-[#E2E2E2] bg-[#101011] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#92F2FF] focus-visible:ring-offset-2 focus-visible:ring-offset-[#070A11]"
           className="inline-flex items-center justify-center p-3 rounded-full text-[#E2E2E2] bg-[#101011] focus:outline-none focus:ring-2 focus:ring-[#5B63D6] focus:ring-offset-2 focus:ring-offset-[#0D0D10]"
           aria-label={isMobileMenuOpen ? "Close menu" : "Open menu"}
           aria-expanded={isMobileMenuOpen}

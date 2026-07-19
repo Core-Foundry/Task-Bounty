@@ -124,8 +124,9 @@ export default function ConnectWalletButton() {
         {!loading && publicKey && (
           <>
             <button
+              type="button"
               onClick={() => setDropdownOpen(!dropdownOpen)}
-              className="gradient-border-button"
+              className="gradient-border-button focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#92F2FF] focus-visible:ring-offset-2 focus-visible:ring-offset-[#070A11]"
             >
               <div className="gradient-border-button-inner">
                 <span className="text-white font-black text-sm">{formattedKey}</span>
@@ -150,8 +151,9 @@ export default function ConnectWalletButton() {
                   </p>
                 </div>
                 <button
+                  type="button"
                   onClick={() => disconnect(showDisconnected)}
-                  className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-[#FF4D4D] hover:bg-[#FF4D4D]/10 transition-colors font-medium"
+                  className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-[#FF4D4D] hover:bg-[#FF4D4D]/10 transition-colors font-medium focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#FF4D4D] focus-visible:ring-offset-2 focus-visible:ring-offset-[#0D0D10]"
                 >
                   <LogOut size={16} />
                   Disconnect Session
@@ -164,8 +166,9 @@ export default function ConnectWalletButton() {
         {!loading && !publicKey && (
           <>
             <button
+              type="button"
               onClick={() => connect(showConnected)}
-              className="bg-[#5B63D6] hover:bg-[#4A51C9] text-white px-3 lg:px-6 py-[11px] lg:py-[15px] rounded-full text-xs lg:text-sm/[100%] font-black tracking-[0] uppercase transition-colors shadow-lg shadow-indigo-500/20"
+              className="bg-[#5B63D6] hover:bg-[#4A51C9] text-white px-3 lg:px-6 py-[11px] lg:py-[15px] rounded-full text-xs lg:text-sm/[100%] font-black tracking-[0] uppercase transition-colors shadow-lg shadow-indigo-500/20 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#92F2FF] focus-visible:ring-offset-2 focus-visible:ring-offset-[#070A11]"
             >
               CONNECT WALLET
             </button>

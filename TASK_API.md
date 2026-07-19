@@ -176,14 +176,30 @@ form field. Non-file fields are ignored.
 | `totalSize` | `number` | Combined size of all files in bytes |
 | `limits` | `object` | Active upload limits echoed back to the client |
 
+**Error response format (JSON)**
+
+All REST API endpoints in this project return JSON with the following top-level fields:
+
+- `ok` (boolean): `true` for success, `false` for errors
+- `error` (string): short human-readable summary
+- `details` (string[]): optional list of validation-specific messages
+- `limits` (object): optional object describing relevant request limits
+
+This format is currently implemented for:
+- `POST /api/task-submissions/validate`
+
+---
+
 **Response — 400 Bad Request** (invalid input)
+
+When one or more file validation checks fail (extension blocked, MIME/content mismatch, empty file, invalid filename, etc.).
 
 ```json
 {
   "ok": false,
-  "error": "Invalid task submission upload.",
+  "error": "File name contains invalid characters. Please rename your file.",
   "details": [
-    "File \"report.exe\" uses a blocked extension."
+    "File name contains invalid characters. Please rename your file."
   ],
   "limits": {
     "maxFiles": 5,
@@ -195,21 +211,25 @@ form field. Non-file fields are ignored.
 
 **Response — 400 Bad Request** (malformed body)
 
+When the server cannot parse the request body as `multipart/form-data`.
+
 ```json
 {
   "ok": false,
-  "error": "Expected multipart form data containing one or more task submission files."
+  "error": "Please upload files using a valid form."
 }
 ```
 
 **Response — 413 Content Too Large** (size limits exceeded)
 
+When file-count limits, per-file limits, or total combined size limits are exceeded.
+
 ```json
 {
   "ok": false,
-  "error": "Invalid task submission upload.",
+  "error": "Total file size too large. Max combined size: 25 MB.",
   "details": [
-    "File \"archive.zip\" exceeds the 10 MB limit."
+    "Total file size too large. Max combined size: 25 MB."
   ],
   "limits": {
     "maxFiles": 5,

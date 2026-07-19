@@ -268,7 +268,7 @@ function validateFilename(name: string) {
   }
 
   if (/[\\/]/.test(normalized) || normalized.includes("..")) {
-    errors.push("File name contains invalid characters. Please rename your file.");
+    errors.push("invalid path sequence");
   }
 
   if (/[\u0000-\u001f\u007f]/.test(normalized)) {
@@ -291,7 +291,7 @@ function validateFilename(name: string) {
   );
 
   if (embeddedDangerousExtension) {
-    errors.push("File contains blocked extensions. Please choose a different file.");
+    errors.push(`blocked embedded extension .${embeddedDangerousExtension}`);
   }
 
   if (DANGEROUS_FILE_EXTENSIONS.has(extension)) {
@@ -320,9 +320,7 @@ async function validateFile(file: File): Promise<TaskSubmissionValidationResult>
     return {
       ok: false,
       status: 413,
-      errors: [
-        `File is too large. Max size: ${formatFileSize(MAX_TASK_SUBMISSION_FILE_SIZE_BYTES)}.`,
-      ],
+      errors: [`File is too large. ${formatFileSize(MAX_TASK_SUBMISSION_FILE_SIZE_BYTES)} limit.`],
     };
   }
 
@@ -346,7 +344,7 @@ async function validateFile(file: File): Promise<TaskSubmissionValidationResult>
       return {
         ok: false,
         status: 400,
-        errors: ["File type doesn't match its content. Please check your file."],
+        errors: [`File content does not match its .${extension} extension.`],
       };
     }
   }
@@ -367,7 +365,7 @@ async function validateFile(file: File): Promise<TaskSubmissionValidationResult>
     return {
       ok: false,
       status: 400,
-      errors: ["File content doesn't match its extension. Please check your file."],
+      errors: [`File content doesn't match its .${extension} extension.`],
     };
   }
 
@@ -406,7 +404,7 @@ export async function validateTaskSubmissionFiles(
     return {
       ok: false,
       status: 400,
-      errors: ["Please select at least one file to upload."],
+      errors: ["At least one task submission file is required."],
     };
   }
 
