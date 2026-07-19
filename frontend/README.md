@@ -12,6 +12,18 @@ pnpm test:security-headers
 
 See [`../SECURITY_HEADERS.md`](../SECURITY_HEADERS.md) for the full list and CSP compatibility notes.
 
+## API rate limiting
+
+Public API endpoints now support configurable request throttling for abuse protection. The rate limiter is disabled by default and can be enabled with environment variables:
+
+```bash
+API_RATE_LIMIT_ENABLED=true
+API_RATE_LIMIT_MAX_REQUESTS=60
+API_RATE_LIMIT_WINDOW_MS=60000
+```
+
+When enabled, requests exceeding the limit receive a `429 Too Many Requests` response with `Retry-After`, `X-Rate-Limit-Limit`, and `X-Rate-Limit-Remaining` headers. The limiter uses the client IP from the forwarded headers when available, so deployments behind proxies can be protected correctly.
+
 ## Task submission file validation
 
 The frontend now exposes a server-side validation endpoint for uploaded task submission files:

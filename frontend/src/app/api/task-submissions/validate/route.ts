@@ -7,6 +7,7 @@ import {
   MAX_TASK_SUBMISSION_TOTAL_SIZE_BYTES,
   validateTaskSubmissionFiles,
 } from "@/lib/task-submission-files";
+import { enforceRateLimit } from "@/lib/rate-limit";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -19,6 +20,11 @@ function buildNoStoreJson(body: unknown, status: number) {
 }
 
 export async function POST(request: Request) {
+  const rateLimitResponse = enforceRateLimit(request);
+  if (rateLimitResponse) {
+    return rateLimitResponse;
+  }
+
   let formData: FormData;
 
   try {
