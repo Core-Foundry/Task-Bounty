@@ -150,6 +150,7 @@ Task-Bounty/
 │       └── lib/                # Stellar RPC utilities
 ├── CONTRIBUTING.md
 ├── SETUP.md
+├── TROUBLESHOOTING.md
 ├── CONTRACT_API.md
 └── README.md
 ```

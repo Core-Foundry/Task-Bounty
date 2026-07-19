@@ -2,7 +2,7 @@
 
 import { connect, disconnect, getPublicKey } from "@/hooks/stellar-wallets-kit";
 import { useEffect, useState, useRef } from "react";
-import { MoreVertical, LogOut, User } from "lucide-react";
+import { MoreVertical, LogOut } from "lucide-react";
 
 const style = `
   @keyframes gradientShift {

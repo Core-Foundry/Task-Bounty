@@ -1,6 +1,7 @@
 #![allow(unused_variables)]
 #![allow(unused_imports)]
 
+use crate::base::events::{ContractPaused, ContractUnpaused};
 use crate::base::types::GroupMember;
 use crate::{AutoShareContract, AutoShareContractClient};
 use soroban_sdk::{testutils::Address as _, token, Address, BytesN, Env, String};
@@ -29,6 +30,11 @@ fn test_admin_can_pause() {
     assert!(!client.get_paused_status());
     client.pause(&admin);
     assert!(client.get_paused_status());
+    
+    // Check that ContractPaused event was emitted
+    let events = env.events().all();
+    assert_eq!(events.len(), 1);
+    assert_eq!(events.get(0).unwrap().name, "ContractPaused");
 }
 
 #[test]
@@ -43,9 +49,20 @@ fn test_admin_can_unpause() {
 
     client.pause(&admin);
     assert!(client.get_paused_status());
+    
+    // Check that ContractPaused was emitted
+    let events_after_pause = env.events().all();
+    assert_eq!(events_after_pause.len(), 1);
+    assert_eq!(events_after_pause.get(0).unwrap().name, "ContractPaused");
 
     client.unpause(&admin);
     assert!(!client.get_paused_status());
+    
+    // Check that both events were emitted
+    let events = env.events().all();
+    assert_eq!(events.len(), 2);
+    assert_eq!(events.get(0).unwrap().name, "ContractPaused");
+    assert_eq!(events.get(1).unwrap().name, "ContractUnpaused");
 }
 
 #[test]
@@ -181,7 +198,7 @@ fn test_add_member_fails_when_paused() {
     token_admin_client.mint(&creator, &10000000);
     client.create(&id, &name, &creator, &100u32, &token_address);
     client.pause(&admin);
-    client.add_group_member(&id, &member, &50u32);
+    client.add_group_member(&id, &creator, &member, &50u32);
 }
 
 #[test]

@@ -4,6 +4,7 @@ import {
   StellarWalletsKit,
   WalletNetwork,
 } from "@creit.tech/stellar-wallets-kit";
+import { createError, ErrorCodes } from "@/lib/errors";
 
 const SELECTED_WALLET_ID = "selectedWalletId";
 
@@ -33,8 +34,16 @@ export const signTransaction = async (
   ...args: Parameters<StellarWalletsKit["signTransaction"]>
 ) => {
   const k = getKit();
-  if (!k) throw new Error("Wallet kit not initialized");
-  return k.signTransaction(...args);
+  if (!k) {
+    const error = createError(ErrorCodes.WALLET_KIT_NOT_INITIALIZED);
+    throw new Error(error.message);
+  }
+  try {
+    return await k.signTransaction(...args);
+  } catch (e) {
+    const error = createError(ErrorCodes.WALLET_CONNECTION_FAILED);
+    throw new Error(error.message);
+  }
 };
 
 export async function getPublicKey() {
@@ -65,7 +74,11 @@ export async function disconnect(callback?: () => Promise<void>) {
   if (k) {
     // kit.disconnect() might not return a promise depending on version,
     // but usually it's void or Promise<void>. safest to await if possible or just call.
-    await k.disconnect();
+    try {
+      await k.disconnect();
+    } catch (e) {
+      console.error("Failed to disconnect wallet:", e);
+    }
   }
   if (callback) await callback();
 }
@@ -74,15 +87,19 @@ export async function connect(callback?: () => Promise<void>) {
   const k = getKit();
   if (!k) return;
 
-  await k.openModal({
-    onWalletSelected: async (option) => {
-      try {
-        await setWallet(option.id);
-        if (callback) await callback();
-      } catch (e) {
-        console.error(e);
-      }
-      return option.id;
-    },
-  });
+  try {
+    await k.openModal({
+      onWalletSelected: async (option) => {
+        try {
+          await setWallet(option.id);
+          if (callback) await callback();
+        } catch (e) {
+          console.error(e);
+        }
+        return option.id;
+      },
+    });
+  } catch (e) {
+    console.error("Failed to open wallet modal:", e);
+  }
 }

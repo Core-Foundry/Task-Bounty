@@ -1,9 +1,8 @@
+use crate::base::events::{AutoshareCreated, AutoshareUpdated, GroupActivated, GroupDeactivated, AdminTransferred, Withdrawal};
 use crate::base::types::GroupMember;
 use crate::mock_token::{MockToken, MockTokenClient};
 use crate::test_utils::{create_test_group, setup_test_env};
 use crate::{AutoShareContract, AutoShareContractClient};
-
-/*use soroban_sdk::testutils::Events;*/
 use soroban_sdk::{testutils::Address as _, Address, BytesN, Env, String, Vec};
 fn create_helper(
     client: &AutoShareContractClient,
@@ -62,6 +61,12 @@ fn test_create_and_get_success() {
     let m2 = result.members.get(1).unwrap();
     assert_eq!(m2.address, member2);
     assert_eq!(m2.percentage, 40);
+    
+    // Check events (AutoshareCreated and AutoshareUpdated since create_test_group calls update_members)
+    let events = test_env.env.events().all();
+    assert_eq!(events.len(), 2);
+    assert_eq!(events.get(0).unwrap().name, "AutoshareCreated");
+    assert_eq!(events.get(1).unwrap().name, "AutoshareUpdated");
 }
 
 #[test]
@@ -622,7 +627,7 @@ fn test_add_duplicate_member() {
     create_helper(&client, &id, &name, &creator, &members, &test_env);
 
     // Try to add the same member again - should fail
-    client.add_group_member(&id, &member1, &50);
+    client.add_group_member(&id, &creator, &member1, &50);
 }
 
 #[test]
@@ -632,9 +637,10 @@ fn test_add_member_to_non_existent_group() {
     let client = AutoShareContractClient::new(&test_env.env, &test_env.autoshare_contract);
 
     let id = BytesN::from_array(&test_env.env, &[99u8; 32]);
+    let caller = Address::generate(&test_env.env);
     let member = Address::generate(&test_env.env);
 
-    client.add_group_member(&id, &member, &50);
+    client.add_group_member(&id, &caller, &member, &50);
 }
 
 #[test]
@@ -659,7 +665,100 @@ fn test_add_member_invalid_total_percentage() {
 
     // Try to add another member with 50% (total would be 150%) - should fail
     let member2 = Address::generate(&test_env.env);
-    client.add_group_member(&id, &member2, &50);
+    client.add_group_member(&id, &creator, &member2, &50);
+}
+
+#[test]
+#[should_panic] // Unauthorized
+fn test_add_group_member_unauthorized() {
+    let test_env = setup_test_env();
+    let client = AutoShareContractClient::new(&test_env.env, &test_env.autoshare_contract);
+
+    let creator = test_env.users.get(0).unwrap().clone();
+    let id = BytesN::from_array(&test_env.env, &[1u8; 32]);
+    let name = String::from_str(&test_env.env, "Unauthorized Add Member");
+
+    let mut members = Vec::new(&test_env.env);
+    members.push_back(GroupMember {
+        address: Address::generate(&test_env.env),
+        percentage: 100,
+    });
+
+    create_helper(&client, &id, &name, &creator, &members, &test_env);
+
+    // Non-creator must not be able to add members to another user's group
+    let attacker = Address::generate(&test_env.env);
+    let new_member = Address::generate(&test_env.env);
+    client.add_group_member(&id, &attacker, &new_member, &50);
+}
+
+#[test]
+#[should_panic] // Unauthorized
+fn test_reduce_usage_unauthorized() {
+    let test_env = setup_test_env();
+    let client = AutoShareContractClient::new(&test_env.env, &test_env.autoshare_contract);
+
+    let creator = test_env.users.get(0).unwrap().clone();
+    let id = BytesN::from_array(&test_env.env, &[2u8; 32]);
+    let name = String::from_str(&test_env.env, "Unauthorized Reduce Usage");
+
+    let mut members = Vec::new(&test_env.env);
+    members.push_back(GroupMember {
+        address: Address::generate(&test_env.env),
+        percentage: 100,
+    });
+
+    create_helper(&client, &id, &name, &creator, &members, &test_env);
+
+    let attacker = Address::generate(&test_env.env);
+    client.reduce_usage(&id, &attacker);
+}
+
+#[test]
+fn test_reduce_usage_creator_succeeds() {
+    let test_env = setup_test_env();
+    let client = AutoShareContractClient::new(&test_env.env, &test_env.autoshare_contract);
+
+    let creator = test_env.users.get(0).unwrap().clone();
+    let id = BytesN::from_array(&test_env.env, &[3u8; 32]);
+    let name = String::from_str(&test_env.env, "Creator Reduce Usage");
+
+    let mut members = Vec::new(&test_env.env);
+    members.push_back(GroupMember {
+        address: Address::generate(&test_env.env),
+        percentage: 100,
+    });
+
+    create_helper(&client, &id, &name, &creator, &members, &test_env);
+
+    let before = client.get_remaining_usages(&id);
+    client.reduce_usage(&id, &creator);
+    let after = client.get_remaining_usages(&id);
+    assert_eq!(after, before - 1);
+}
+
+#[test]
+fn test_add_group_member_creator_succeeds() {
+    let test_env = setup_test_env();
+    let client = AutoShareContractClient::new(&test_env.env, &test_env.autoshare_contract);
+
+    let creator = test_env.users.get(0).unwrap().clone();
+    let id = BytesN::from_array(&test_env.env, &[4u8; 32]);
+    let name = String::from_str(&test_env.env, "Creator Add Member");
+    let token = test_env.mock_tokens.get(0).unwrap().clone();
+
+    // Create leaves members empty; creator then adds the first member
+    crate::test_utils::mint_tokens(&test_env.env, &token, &creator, 10000000);
+    client.create(&id, &name, &creator, &1u32, &token);
+
+    let member = Address::generate(&test_env.env);
+    client.add_group_member(&id, &creator, &member, &100);
+
+    let members = client.get_group_members(&id);
+    assert_eq!(members.len(), 1);
+    assert_eq!(members.get(0).unwrap().address, member);
+    assert_eq!(members.get(0).unwrap().percentage, 100);
+    assert!(client.is_group_member(&id, &member));
 }
 
 #[test]
@@ -1115,6 +1214,87 @@ fn test_is_group_member_works_on_inactive_group() {
 
     // Should still be able to check membership
     assert!(client.is_group_member(&id, &member1));
+}
+
+#[test]
+fn test_group_deactivate_activate_events() {
+    let test_env = setup_test_env();
+    let client = AutoShareContractClient::new(&test_env.env, &test_env.autoshare_contract);
+
+    let creator = test_env.users.get(0).unwrap().clone();
+    let id = BytesN::from_array(&test_env.env, &[1u8; 32]);
+    let name = String::from_str(&test_env.env, "Test Group");
+    let mut members = Vec::new(&test_env.env);
+    members.push_back(GroupMember {
+        address: Address::generate(&test_env.env),
+        percentage: 100,
+    });
+
+    create_helper(&client, &id, &name, &creator, &members, &test_env);
+
+    // Check initial events (AutoshareCreated, AutoshareUpdated)
+    let initial_events = test_env.env.events().all();
+    assert_eq!(initial_events.len(), 2);
+
+    // Deactivate group
+    client.deactivate_group(&id, &creator);
+    let events_after_deactivate = test_env.env.events().all();
+    assert_eq!(events_after_deactivate.len(), 3);
+    assert_eq!(events_after_deactivate.get(2).unwrap().name, "GroupDeactivated");
+
+    // Activate group
+    client.activate_group(&id, &creator);
+    let events_after_activate = test_env.env.events().all();
+    assert_eq!(events_after_activate.len(), 4);
+    assert_eq!(events_after_activate.get(3).unwrap().name, "GroupActivated");
+}
+
+#[test]
+fn test_admin_transfer_event() {
+    let env = Env::default();
+    env.mock_all_auths();
+    let contract_id = env.register(AutoShareContract, ());
+    let client = AutoShareContractClient::new(&env, &contract_id);
+
+    let old_admin = Address::generate(&env);
+    let new_admin = Address::generate(&env);
+
+    client.initialize_admin(&old_admin);
+    client.transfer_admin(&old_admin, &new_admin);
+
+    let events = env.events().all();
+    assert_eq!(events.len(), 1);
+    assert_eq!(events.get(0).unwrap().name, "AdminTransferred");
+}
+
+#[test]
+fn test_withdrawal_event() {
+    let env = Env::default();
+    env.mock_all_auths();
+    let contract_id = env.register(AutoShareContract, ());
+    let client = AutoShareContractClient::new(&env, &contract_id);
+
+    // Initialize admin
+    let admin = Address::generate(&env);
+    client.initialize_admin(&admin);
+
+    // Deploy and mint test token
+    let token_id = env.register(MockToken, ());
+    let token_client = MockTokenClient::new(&env, &token_id);
+    let token_admin = Address::generate(&env);
+    token_client.initialize(&token_admin, &7, &String::from_str(&env, "TEST"), &String::from_str(&env, "TEST"));
+    token_client.mint(&env.current_contract_address(), &1000);
+
+    // Add token as supported
+    client.add_supported_token(&token_id, &admin);
+
+    // Perform withdrawal
+    let recipient = Address::generate(&env);
+    client.withdraw(&admin, &token_id, &1000, &recipient);
+
+    let events = env.events().all();
+    assert_eq!(events.len(), 1);
+    assert_eq!(events.get(0).unwrap().name, "Withdrawal");
 }
 
 // =====================
@@ -1611,4 +1791,96 @@ fn test_create_group_with_payment() {
     let details = client.get(&id);
     assert_eq!(details.usage_count, usage_count);
     assert_eq!(details.total_usages_paid, usage_count);
+}
+
+#[test]
+fn test_reward_payment_records_exact_amount_and_contract_balance() {
+    let test_env = setup_test_env();
+    let client = AutoShareContractClient::new(&test_env.env, &test_env.autoshare_contract);
+
+    let creator = test_env.users.get(0).unwrap().clone();
+    let token_address = test_env.mock_tokens.get(0).unwrap().clone();
+    let token_client = MockTokenClient::new(&test_env.env, &token_address);
+    let usage_fee = 25u32;
+    let usage_count = 4u32;
+    let expected_amount = (usage_fee as i128) * (usage_count as i128);
+
+    client.set_usage_fee(&usage_fee, &test_env.admin);
+    crate::test_utils::mint_tokens(&test_env.env, &token_address, &creator, 1_000);
+
+    let id = BytesN::from_array(&test_env.env, &[67u8; 32]);
+    let name = String::from_str(&test_env.env, "Reward Amount Audit");
+
+    client.create(&id, &name, &creator, &usage_count, &token_address);
+
+    let user_history = client.get_user_payment_history(&creator);
+    let group_history = client.get_group_payment_history(&id);
+
+    assert_eq!(user_history.len(), 1);
+    assert_eq!(group_history.len(), 1);
+    assert_eq!(user_history.get(0).unwrap().usages_purchased, usage_count);
+    assert_eq!(user_history.get(0).unwrap().amount_paid, expected_amount);
+    assert_eq!(group_history.get(0).unwrap().amount_paid, expected_amount);
+    assert_eq!(token_client.balance(&creator), 1_000 - expected_amount);
+    assert_eq!(client.get_contract_balance(&token_address), expected_amount);
+}
+
+#[test]
+#[should_panic]
+fn test_reward_topup_rejects_zero_usage_amount() {
+    let test_env = setup_test_env();
+    let client = AutoShareContractClient::new(&test_env.env, &test_env.autoshare_contract);
+
+    let creator = test_env.users.get(0).unwrap().clone();
+    let payer = test_env.users.get(1).unwrap().clone();
+    let token_address = test_env.mock_tokens.get(0).unwrap().clone();
+
+    crate::test_utils::mint_tokens(&test_env.env, &token_address, &creator, 1_000);
+    crate::test_utils::mint_tokens(&test_env.env, &token_address, &payer, 1_000);
+
+    let id = BytesN::from_array(&test_env.env, &[68u8; 32]);
+    let name = String::from_str(&test_env.env, "Reject Zero Topup");
+    client.create(&id, &name, &creator, &1u32, &token_address);
+
+    client.topup_subscription(&id, &0u32, &token_address, &payer);
+}
+
+#[test]
+fn test_multiple_contributors_record_separate_reward_payments() {
+    let test_env = setup_test_env();
+    let client = AutoShareContractClient::new(&test_env.env, &test_env.autoshare_contract);
+
+    let creator = test_env.users.get(0).unwrap().clone();
+    let contributor = test_env.users.get(1).unwrap().clone();
+    let token_address = test_env.mock_tokens.get(0).unwrap().clone();
+    let token_client = MockTokenClient::new(&test_env.env, &token_address);
+
+    crate::test_utils::mint_tokens(&test_env.env, &token_address, &creator, 1_000);
+    crate::test_utils::mint_tokens(&test_env.env, &token_address, &contributor, 1_000);
+
+    let id = BytesN::from_array(&test_env.env, &[69u8; 32]);
+    let name = String::from_str(&test_env.env, "Multi Contributor Rewards");
+
+    client.create(&id, &name, &creator, &2u32, &token_address);
+    client.topup_subscription(&id, &3u32, &token_address, &contributor);
+
+    let group_history = client.get_group_payment_history(&id);
+    let creator_history = client.get_user_payment_history(&creator);
+    let contributor_history = client.get_user_payment_history(&contributor);
+    let details = client.get(&id);
+
+    assert_eq!(group_history.len(), 2);
+    assert_eq!(creator_history.len(), 1);
+    assert_eq!(contributor_history.len(), 1);
+    assert_eq!(group_history.get(0).unwrap().user, creator);
+    assert_eq!(group_history.get(0).unwrap().usages_purchased, 2);
+    assert_eq!(group_history.get(0).unwrap().amount_paid, 20);
+    assert_eq!(group_history.get(1).unwrap().user, contributor);
+    assert_eq!(group_history.get(1).unwrap().usages_purchased, 3);
+    assert_eq!(group_history.get(1).unwrap().amount_paid, 30);
+    assert_eq!(details.usage_count, 5);
+    assert_eq!(details.total_usages_paid, 5);
+    assert_eq!(token_client.balance(&creator), 980);
+    assert_eq!(token_client.balance(&contributor), 970);
+    assert_eq!(client.get_contract_balance(&token_address), 50);
 }

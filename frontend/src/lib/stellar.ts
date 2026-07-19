@@ -2,6 +2,8 @@
  * Stellar utility functions for interacting with the Horizon API
  */
 
+import { createError, ErrorCodes, StandardError } from "@/lib/errors";
+
 const HORIZON_URL = "https://horizon.stellar.org";
 
 interface AccountDetails {
@@ -17,39 +19,48 @@ interface AccountDetails {
 /**
  * Fetches the account details for a given Stellar public key
  * @param publicKey - The Stellar public key
- * @returns Account details from Horizon API
+ * @returns Account details from Horizon API or throws a StandardError
  */
 export async function getAccountDetails(
   publicKey: string,
-): Promise<AccountDetails | null> {
+): Promise<AccountDetails> {
   try {
     const response = await fetch(`${HORIZON_URL}/accounts/${publicKey}`);
     if (!response.ok) {
-      return null;
+      if (response.status === 404) {
+        throw createError(ErrorCodes.STELLAR_ACCOUNT_NOT_FOUND);
+      }
+      throw createError(ErrorCodes.STELLAR_FETCH_FAILED);
     }
     return response.json();
   } catch (error) {
+    if (error instanceof Error && "code" in error) {
+      throw error as StandardError;
+    }
     console.error("Error fetching account details:", error);
-    return null;
+    throw createError(ErrorCodes.STELLAR_FETCH_FAILED);
   }
 }
 
 /**
  * Fetches the native (XLM) balance for a given Stellar public key
  * @param publicKey - The Stellar public key
- * @returns XLM balance as a string, or null if not found
+ * @returns XLM balance as a string or throws a StandardError
  */
 export async function getNativeBalance(
   publicKey: string,
-): Promise<string | null> {
+): Promise<string> {
   const accountDetails = await getAccountDetails(publicKey);
-  if (!accountDetails) return null;
 
   const nativeBalance = accountDetails.balances.find(
     (balance) => balance.asset_type === "native",
   );
 
-  return nativeBalance ? nativeBalance.balance : null;
+  if (!nativeBalance) {
+    throw createError(ErrorCodes.STELLAR_BALANCE_NOT_FOUND);
+  }
+
+  return nativeBalance.balance;
 }
 
 /**

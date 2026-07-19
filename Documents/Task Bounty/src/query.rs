@@ -69,6 +69,13 @@ pub fn get_tasks_by_reward(env: &Env, reward: i128) -> Vec<Task> {
 
     for task in all_tasks(env).iter() {
         if task.reward == reward {
+            results.push_back(task.clone());
+        }
+    }
+
+    results
+}
+
 pub fn get_tasks_by_category(env: &Env, category: String) -> Vec<Task> {
     let mut results: Vec<Task> = Vec::new(env);
 
@@ -86,6 +93,13 @@ pub fn get_tasks_by_min_reward(env: &Env, min_reward: i128) -> Vec<Task> {
 
     for task in all_tasks(env).iter() {
         if task.reward >= min_reward {
+            results.push_back(task.clone());
+        }
+    }
+
+    results
+}
+
 pub fn get_tasks_by_tag(env: &Env, tag: String) -> Vec<Task> {
     let mut results: Vec<Task> = Vec::new(env);
 
@@ -115,11 +129,6 @@ pub fn search_tasks(env: &Env, query: String) -> Vec<Task> {
 
     for task in all_tasks(env).iter() {
         if task_matches_query(&task, &query) {
-pub fn get_tasks_by_status(env: &Env, status: TaskStatus) -> Vec<Task> {
-    let mut results: Vec<Task> = Vec::new(env);
-
-    for task in all_tasks(env).iter() {
-        if task.status == status {
             results.push_back(task.clone());
         }
     }

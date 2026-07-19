@@ -53,13 +53,14 @@ jobs:
 
       # -----------------------------------
       # Set up pnpm (if using pnpm)
+      # Pin to packageManager in frontend/package.json — "latest" (pnpm 11+)
+      # requires Node >= 22.13 and crashes on Node 20 (node:sqlite).
       # -----------------------------------
       - name: Set up pnpm
         if: steps.pm.outputs.manager == 'pnpm'
         uses: pnpm/action-setup@v4
         with:
-          # Pin to packageManager in frontend/package.json; pnpm 11+ needs Node ≥22
-          version: "10.26.1"
+          version: 10.26.1
 
       # -----------------------------------
       # Cache dependencies

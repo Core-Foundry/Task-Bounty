@@ -358,6 +358,54 @@ fn test_approve_submission() {
 }
 
 #[test]
+fn test_full_bounty_workflow_from_creation_to_reward_claim() {
+    let (env, poster, contributor, _, token_client, contract_id) = setup_test();
+    let client = TaskBountyContractClient::new(&env, &contract_id);
+
+    let reward = 10_000_000;
+    let poster_balance_before = token_client.balance(&poster);
+    let contributor_balance_before = token_client.balance(&contributor);
+    let contract_balance_before = token_client.balance(&contract_id);
+
+    let task_id = client.create_task(
+        &poster,
+        &String::from_str(&env, "Build onboarding flow"),
+        &String::from_str(&env, "Implement the first-time user experience"),
+        &token_client.address(),
+        &reward,
+        &(env.ledger().timestamp() + 86_400),
+        &2,
+    );
+
+    let submission_id = client.submit_work(
+        &task_id,
+        &contributor,
+        &String::from_str(&env, "ipfs://onboarding"),
+        &String::from_str(&env, "Completed the guided onboarding experience"),
+    );
+
+    let task_in_progress = client.get_task(&task_id);
+    assert_eq!(task_in_progress.status, TaskStatus::InProgress);
+    assert_eq!(task_in_progress.submission_count, 1);
+
+    client.approve_submission(&task_id, &submission_id, &poster);
+
+    let poster_balance_after = token_client.balance(&poster);
+    let contributor_balance_after = token_client.balance(&contributor);
+    let contract_balance_after = token_client.balance(&contract_id);
+
+    assert_eq!(poster_balance_after, poster_balance_before - reward);
+    assert_eq!(contributor_balance_after, contributor_balance_before + reward);
+    assert_eq!(contract_balance_after, contract_balance_before);
+
+    let task = client.get_task(&task_id);
+    assert_eq!(task.status, TaskStatus::Completed);
+
+    let submission = client.get_submission(&submission_id);
+    assert_eq!(submission.status, SubmissionStatus::Approved);
+}
+
+#[test]
 fn test_reject_submission() {
     let (env, poster, contributor, _, token_client, contract_id) = setup_test();
     let client = TaskBountyContractClient::new(&env, &contract_id);
@@ -615,6 +663,8 @@ fn test_task_search_and_filtering() {
 
     let _ = submission_id;
 }
+
+#[test]
 fn test_task_categories_and_tags() {
     let (env, poster, _, _, token_client, contract_id) = setup_test();
     let client = TaskBountyContractClient::new(&env, &contract_id);
@@ -681,6 +731,83 @@ fn test_task_categories_and_tags() {
     assert_eq!(task.category, String::from_str(&env, "Design"));
     assert!(task.tags.contains(String::from_str(&env, "frontend")));
     assert!(task.tags.contains(String::from_str(&env, "ui")));
+}
+
+#[test]
+fn test_e2e_multiple_contributors_flow() {
+    let (env, poster, contributor_a, _, token_client, contract_id) = setup_test();
+    let client = TaskBountyContractClient::new(&env, &contract_id);
+    let contributor_b = Address::generate(&env);
+
+    let reward = 15_000_000;
+    let poster_balance_before = token_client.balance(&poster);
+    let contributor_b_balance_before = token_client.balance(&contributor_b);
+
+    // 1. Poster creates a task with reward and max_submissions = 2
+    let task_id = client.create_task(
+        &poster,
+        &String::from_str(&env, "Build CLI tool"),
+        &String::from_str(&env, "Create a command line interface"),
+        &token_client.address(),
+        &reward,
+        &(env.ledger().timestamp() + 86_400),
+        &2,
+    );
+
+    // 2. Contributor A submits work
+    let sub_a_id = client.submit_work(
+        &task_id,
+        &contributor_a,
+        &String::from_str(&env, "ipfs://cli-contrib-a"),
+        &String::from_str(&env, "First draft cli"),
+    );
+
+    // 3. Contributor B submits work
+    let sub_b_id = client.submit_work(
+        &task_id,
+        &contributor_b,
+        &String::from_str(&env, "ipfs://cli-contrib-b"),
+        &String::from_str(&env, "Polished and tested cli"),
+    );
+
+    // 4. Poster rejects Contributor A's work
+    client.reject_submission(
+        &task_id,
+        &sub_a_id,
+        &poster,
+        &String::from_str(&env, "Code quality does not meet requirements"),
+    );
+
+    let sub_a = client.get_submission(&sub_a_id);
+    assert_eq!(sub_a.status, SubmissionStatus::Rejected);
+
+    // 5. Contributor A disputes the rejection
+    client.raise_dispute(
+        &task_id,
+        &sub_a_id,
+        &contributor_a,
+        &String::from_str(&env, "Code meets the requirements completely"),
+    );
+
+    let task_disputed = client.get_task(&task_id);
+    assert_eq!(task_disputed.status, TaskStatus::Disputed);
+
+    // 6. Poster approves Contributor B's work (this should work despite active dispute on another submission)
+    client.approve_submission(&task_id, &sub_b_id, &poster);
+
+    // Verify balances
+    let poster_balance_after = token_client.balance(&poster);
+    let contributor_b_balance_after = token_client.balance(&contributor_b);
+    assert_eq!(poster_balance_after, poster_balance_before - reward);
+    assert_eq!(contributor_b_balance_after, contributor_b_balance_before + reward);
+
+    // Verify task is completed
+    let task_completed = client.get_task(&task_id);
+    assert_eq!(task_completed.status, TaskStatus::Completed);
+
+    // Verify submission B is approved
+    let sub_b = client.get_submission(&sub_b_id);
+    assert_eq!(sub_b.status, SubmissionStatus::Approved);
 }
 
 

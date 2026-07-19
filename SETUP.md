@@ -1,337 +1,357 @@
-# TaskBounty — Local Development Setup
+# Local Development Setup
 
-This guide covers everything needed to build, test, and run TaskBounty locally.
+This guide explains how to install, configure, run, test, and troubleshoot the current code in this repository.
+
+> Important: the active application in this repo is a **Stellar/Soroban AutoShare contract + Paymesh frontend**.
+> Some files under `Documents/Task Bounty/` are legacy/reference documents and are **not** the source of truth for local setup.
 
 ## Table of Contents
 
+- [What is in this repository](#what-is-in-this-repository)
 - [Prerequisites](#prerequisites)
-- [Repository Setup](#repository-setup)
-- [Smart Contract Development](#smart-contract-development)
-- [Frontend Development](#frontend-development)
-- [Testing](#testing)
-- [Deploying to Testnet](#deploying-to-testnet)
-- [IDE Configuration](#ide-configuration)
+- [Clone and prepare the repository](#clone-and-prepare-the-repository)
+- [Install dependencies](#install-dependencies)
+- [Configuration](#configuration)
+- [Run the smart contract locally](#run-the-smart-contract-locally)
+- [Run the frontend locally](#run-the-frontend-locally)
+- [Testing and validation](#testing-and-validation)
+- [Examples](#examples)
 - [Troubleshooting](#troubleshooting)
+
+---
+
+## What is in this repository
+
+The repo currently contains two active workspaces:
+
+```text
+Task-Bounty/
+├── contract/                    # Soroban workspace
+│   ├── Cargo.toml
+│   └── contracts/
+│       └── hello-world/
+│           └── src/
+│               ├── lib.rs
+│               ├── autoshare_logic.rs
+│               ├── base/
+│               ├── interfaces/
+│               ├── mock_token.rs
+│               └── tests/
+├── frontend/                    # Next.js frontend
+│   ├── package.json
+│   └── src/
+└── SETUP.md                     # This file
+```
+
+### Current behavior to be aware of
+
+- The contract code exposes **AutoShare/Paymesh** functionality, not the older TaskBounty contract described in some legacy docs.
+- The frontend currently uses the Stellar wallet kit with `WalletNetwork.PUBLIC`.
+- The frontend currently reads the public Horizon endpoint directly in code.
+- There is **no required `.env.local` file** for the current frontend code path.
 
 ---
 
 ## Prerequisites
 
-### Required
+Install these before running the project.
 
-| Tool | Version | Install |
-|------|---------|---------|
-| Rust | stable (≥ 1.74) | [rustup.rs](https://rustup.rs) |
-| wasm32 target | — | `rustup target add wasm32-unknown-unknown` |
-| Stellar CLI | ≥ 21.0 | `cargo install --locked stellar-cli --features opt` |
-| Node.js | ≥ 18 | [nodejs.org](https://nodejs.org) |
-| pnpm | ≥ 8 | `npm install -g pnpm` |
+| Tool | Recommended version | Why it is needed |
+| --- | --- | --- |
+| Rust | stable | Builds and tests the Soroban contract |
+| `wasm32-unknown-unknown` target | latest | Compiles the contract to WebAssembly |
+| Stellar CLI | latest stable | Builds/optimizes/deploys Soroban contracts |
+| Node.js | 20.9.0 or newer | Runs the frontend and satisfies Next.js 16 requirements |
+| pnpm | 10.x | Matches the frontend package manager |
+| Freighter or another supported Stellar wallet | latest | Optional, for manual frontend testing |
 
-### Install Rust
+### Quick version checks
 
-```bash
-curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh
-source $HOME/.cargo/env
-
-# Add WebAssembly compile target
-rustup target add wasm32-unknown-unknown
-```
-
-### Install Stellar CLI
+Run these after installation:
 
 ```bash
-cargo install --locked stellar-cli --features opt
-
-# Verify
+rustc -V
+cargo -V
 stellar --version
+node -v
+pnpm -v
 ```
 
 ---
 
-## Repository Setup
+## Clone and prepare the repository
+
+If you are contributing from a fork:
 
 ```bash
-git clone https://github.com/<org>/Task-Bounty.git
+git clone https://github.com/<your-username>/Task-Bounty.git
+cd Task-Bounty
+git remote add upstream https://github.com/Core-Foundry/Task-Bounty.git
+```
+
+If you already cloned the repository directly from GitHub, just move into it:
+
+```bash
 cd Task-Bounty
 ```
 
 ---
 
-## Smart Contract Development
+## Install dependencies
 
-The contract lives in `contract/contracts/hello-world/src/`.
+### 1. Install Rust and the WASM target
+
+```bash
+curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh
+source "$HOME/.cargo/env"
+rustup target add wasm32-unknown-unknown
+```
+
+### 2. Install Stellar CLI
+
+```bash
+cargo install --locked stellar-cli --features opt
+stellar --version
+```
+
+### 3. Install Node.js and pnpm
+
+If you already have Node.js 20.9+ installed:
+
+```bash
+corepack enable
+corepack prepare pnpm@10.26.1 --activate
+pnpm -v
+```
+
+If your shell still does not expose a `pnpm` binary after activation, use `corepack pnpm` in the commands below instead.
+
+If `corepack` is unavailable, use:
+
+```bash
+npm install -g pnpm
+pnpm -v
+```
+
+### 4. Install frontend packages
+
+```bash
+cd frontend
+pnpm install
+cd ..
+```
+
+---
+
+## Configuration
+
+### Frontend configuration
+
+The current frontend does **not** require a `.env.local` file to boot.
+
+At the moment:
+
+- wallet network is set in `frontend/src/hooks/stellar-wallets-kit.ts`
+- Horizon endpoint is set in `frontend/src/lib/stellar.ts`
+
+That means the old file below is **reference-only** and is not consumed by the current frontend:
+
+```text
+Documents/Task Bounty/.env.example
+```
+
+### When you may still want local configuration
+
+You may choose to add a private `.env.local` later if you wire contract IDs, RPC URLs, or feature flags into the frontend. Until the code reads those variables, creating the file has no effect.
+
+---
+
+## Run the smart contract locally
+
+From the repo root:
+
+```bash
+cd contract
+```
 
 ### Build
 
 ```bash
-cd contract
 stellar contract build
 ```
 
-Output: `target/wasm32-unknown-unknown/release/hello_world.wasm`
+Expected output:
 
-### Build optimized (for deployment)
+```text
+target/wasm32-unknown-unknown/release/hello_world.wasm
+```
+
+### Optimize the compiled contract
 
 ```bash
 stellar contract optimize \
   --wasm target/wasm32-unknown-unknown/release/hello_world.wasm
 ```
 
-### Project structure
+### Useful contract files
 
-```
+```text
 contract/contracts/hello-world/src/
-├── lib.rs          # Public contract API & entry points
-├── types.rs        # Task, Submission, Dispute, Error enums/structs
-├── storage.rs      # Storage key helpers (get/set wrappers)
-├── task.rs         # create_task, cancel_task logic
-├── submission.rs   # submit_work, approve_submission, reject_submission
-├── dispute.rs      # raise_dispute logic
-├── events.rs       # Event emission helpers
-└── test.rs         # Integration tests
+├── lib.rs                  # Public contract entry points
+├── autoshare_logic.rs      # Main AutoShare business logic
+├── base/errors.rs          # Custom errors
+├── base/events.rs          # Event helpers
+├── base/types.rs           # Shared contract types
+├── interfaces/autoshare.rs # Contract interface definition
+├── mock_token.rs           # Test token helper
+└── tests/                  # Contract test suite
 ```
 
 ---
 
-## Frontend Development
-
-The frontend is a Next.js app in `frontend/`.
+## Run the frontend locally
 
 ```bash
 cd frontend
-pnpm install
 pnpm dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000).
+Then open:
+
+```text
+http://localhost:3000
+```
+Once running, application status can be monitored via the health check endpoint at [http://localhost:3000/api/health](http://localhost:3000/api/health) (see `frontend/README.md` for the response format).
 
 ### Environment variables
 
-Copy the example env file:
-
-```bash
-cp "Documents/Task Bounty/.env.example" frontend/.env.local
-```
-
-Key variables:
-
-```env
-NEXT_PUBLIC_CONTRACT_ID=       # Deployed contract address
-NEXT_PUBLIC_NETWORK=testnet    # testnet or mainnet
-NEXT_PUBLIC_RPC_URL=https://soroban-testnet.stellar.org
-```
-
-### Build for production
+### Production build
 
 ```bash
 pnpm build
+pnpm start
 ```
 
 ---
 
-## Testing
+## Testing and validation
 
 ### Contract tests
 
 ```bash
 cd contract
-cargo test                        # Run all tests
-cargo test -- --nocapture         # With stdout output
-cargo test test_create_task       # Single test by name
-cargo test -- --test-threads=1    # Serial (for debugging)
+cargo test
 ```
 
+Useful variations:
+
+```bash
+# Show panic/output details
+cargo test -- --nocapture
+
+# Run a single test by substring
+cargo test test_initialize_with_admin -- --nocapture
+
+# Run pause-related tests only
+cargo test pause_test -- --nocapture
+```
+
+### Contract formatting and linting
+
+```bash
+cd contract
+cargo fmt --all --check
+cargo clippy --all-targets -- -D warnings
+```
+
+### Frontend checks
 Tests are in `contract/contracts/hello-world/src/test.rs` and use the Soroban test environment (`soroban_sdk::testutils`).
+
+### Frontend tests
+
+```bash
+cd frontend
+pnpm test    # Run unit tests (Vitest)
+```
+
+Frontend unit tests live next to the code they cover (e.g. `frontend/src/lib/health.test.ts`).
 
 ### Frontend linting
 
 ```bash
 cd frontend
 pnpm lint
+pnpm build
 ```
 
 ---
 
-## Deploying to Testnet
+## Examples
 
-### 1. Generate a test identity
-
-```bash
-stellar keys generate dev-account --network testnet
-```
-
-### 2. Fund with test XLM
+### Example 1: Fresh local setup from a fork
 
 ```bash
-stellar keys fund dev-account --network testnet
-# Or: curl https://friendbot.stellar.org?addr=<PUBLIC_KEY>
+git clone https://github.com/<your-username>/Task-Bounty.git
+cd Task-Bounty
+git remote add upstream https://github.com/Core-Foundry/Task-Bounty.git
+
+rustup target add wasm32-unknown-unknown
+corepack enable
+corepack prepare pnpm@10.26.1 --activate
+
+cd frontend && pnpm install && cd ..
+cd contract && cargo test && cd ..
+cd frontend && pnpm dev
 ```
 
-### 3. Deploy
+### Example 2: Verify the contract before opening a PR
 
 ```bash
 cd contract
-stellar contract deploy \
-  --wasm target/wasm32-unknown-unknown/release/hello_world.wasm \
-  --source dev-account \
-  --network testnet
+cargo fmt --all --check
+cargo test -- --nocapture
 ```
 
-Save the returned contract ID.
-
-### 4. Initialize
+### Example 3: Verify the frontend before opening a PR
 
 ```bash
-stellar contract invoke \
-  --id <CONTRACT_ID> \
-  --source dev-account \
-  --network testnet \
-  -- \
-  initialize \
-  --dispute_resolver <DISPUTE_RESOLVER_ADDRESS> \
-  --admin <ADMIN_ADDRESS>
+cd frontend
+pnpm lint
+pnpm build
 ```
 
-### 5. Invoke a function
+### Example 4: Manual smoke test of the UI
+
+1. Start the frontend with `pnpm dev`.
+2. Open `http://localhost:3000`.
+3. Click **CONNECT WALLET**.
+4. Approve the connection in a supported Stellar wallet.
+5. Confirm the connected wallet address appears in the navbar.
+
+### Example 5: Build the deployable contract artifact
 
 ```bash
-# Create a task
-stellar contract invoke \
-  --id <CONTRACT_ID> \
-  --source dev-account \
-  --network testnet \
-  -- \
-  create_task \
-  --poster <POSTER_ADDRESS> \
-  --title "Build something" \
-  --description "Full description here" \
-  --token <TOKEN_ADDRESS> \
-  --reward 1000000000 \
-  --deadline 1780000000 \
-  --max_submissions 3
-
-# Read a task
-stellar contract invoke \
-  --id <CONTRACT_ID> \
-  --source dev-account \
-  --network testnet \
-  -- \
-  get_task \
-  --task_id 1
-```
-
-### Generate TypeScript bindings
-
-```bash
-stellar contract bindings typescript \
-  --contract-id <CONTRACT_ID> \
-  --network testnet \
-  --output-dir frontend/src/lib/contract-bindings
-```
-
----
-
-## IDE Configuration
-
-### VS Code
-
-Recommended extensions:
-- `rust-lang.rust-analyzer`
-- `vadimcn.vscode-lldb`
-- `bungcip.better-toml`
-
-The project already has `.vscode/settings.json`. If you need to add Rust analyzer settings:
-
-```json
-{
-  "rust-analyzer.cargo.target": "wasm32-unknown-unknown",
-  "rust-analyzer.checkOnSave.allTargets": false
-}
+cd contract
+stellar contract build
+stellar contract optimize \
+  --wasm target/wasm32-unknown-unknown/release/hello_world.wasm
 ```
 
 ---
 
 ## Troubleshooting
 
-### `stellar: command not found`
-
-Stellar CLI is not in PATH after `cargo install`.
-
-```bash
-export PATH="$HOME/.cargo/bin:$PATH"
-# Add to ~/.bashrc or ~/.zshrc to persist
-```
-
-### `error: linker 'rust-lld' not found` or WASM target error
-
-WebAssembly target is missing.
-
-```bash
-rustup target add wasm32-unknown-unknown
-```
-
-### `error[E0463]: can't find crate for 'std'`
-
-You're compiling for WASM without the `no_std` attribute, or the target wasn't added.
-
-```bash
-rustup target add wasm32-unknown-unknown
-cargo build --target wasm32-unknown-unknown --release
-```
-
-### Build fails after dependency update
-
-```bash
-cd contract
-cargo clean
-stellar contract build
-```
-
-### `insufficient balance` when invoking
-
-Your test account needs XLM.
-
-```bash
-stellar keys fund dev-account --network testnet
-```
-
-### Tests fail with `HostError` or `Vm error`
-
-Run with `--nocapture` to see the panic message:
-
-```bash
-cargo test -- --nocapture 2>&1 | head -50
-```
-
-### `pnpm install` fails
-
-Ensure you're using Node.js 18+ and pnpm 8+:
-
-```bash
-node --version   # should be >= 18
-pnpm --version   # should be >= 8
-```
+See [TROUBLESHOOTING.md](./TROUBLESHOOTING.md) for a comprehensive guide to common installation and runtime issues.
 
 ---
 
-## Useful Commands Reference
+## Recommended PR checklist
+
+Before pushing your branch, run:
 
 ```bash
-# Contract
-stellar contract build                        # Build
-cargo test                                    # Test
-cargo clippy -- -D warnings                   # Lint
-cargo fmt                                     # Format
-stellar contract inspect --wasm <WASM_FILE>   # Inspect ABI
-
-# Network
-stellar keys generate <name> --network testnet
-stellar keys fund <name> --network testnet
-stellar contract deploy --wasm <FILE> --source <KEY> --network testnet
-stellar contract invoke --id <ID> --source <KEY> --network testnet -- <FN> <ARGS>
-
-# Frontend
-pnpm dev      # Dev server
-pnpm build    # Production build
-pnpm lint     # Lint
+cd contract && cargo test
+cd ../frontend && pnpm lint && pnpm build
 ```
+
+If all of the above pass, your local setup is ready for day-to-day development.
