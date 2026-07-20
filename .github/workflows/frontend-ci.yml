@@ -89,10 +89,12 @@ jobs:
           fi
 
       # -----------------------------------
-      # Format check (ESLint)
+      # Lint check (ESLint) — refs #84
+      # No continue-on-error: lint failures must fail the job directly so
+      # branch protection can block merges on lint errors.
+      # No --fix flag: this workflow only reports, never auto-commits.
       # -----------------------------------
-      - name: Format check
-        id: lint
+      - name: Lint
         run: |
           if [ "${{ steps.pm.outputs.manager }}" = "pnpm" ]; then
             pnpm lint
@@ -101,13 +103,11 @@ jobs:
           else
             npm run lint
           fi
-        continue-on-error: true
 
       # -----------------------------------
       # Build check
       # -----------------------------------
       - name: Build frontend
-        id: build
         run: |
           if [ "${{ steps.pm.outputs.manager }}" = "pnpm" ]; then
             pnpm build
@@ -116,15 +116,3 @@ jobs:
           else
             npm run build
           fi
-
-      # -----------------------------------
-      # Report build status
-      # -----------------------------------
-      - name: Report status
-        if: steps.lint.outcome == 'failure' || steps.build.outcome == 'failure'
-        run: |
-          echo "❌ CI checks failed!"
-          echo "Please ensure:"
-          echo "  - Code builds successfully (npm run build)"
-          echo "  - Code formatting is correct (npm run lint)"
-          exit 1
