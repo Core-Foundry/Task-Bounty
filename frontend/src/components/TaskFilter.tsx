@@ -35,12 +35,12 @@ export function TaskFilter({ filters, onFilterChange, onReset }: TaskFilterProps
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
           {/* Category Filter */}
           <div className="space-y-2">
-            <label className="text-sm font-medium text-muted-foreground">Category</label>
+            <label htmlFor="filter-category" className="text-sm font-medium text-muted-foreground">Category</label>
             <Select
               value={filters.category}
               onValueChange={(value) => handleChange("category", value)}
             >
-              <SelectTrigger>
+              <SelectTrigger id="filter-category">
                 <SelectValue placeholder="Select category" />
               </SelectTrigger>
               <SelectContent>
@@ -53,12 +53,12 @@ export function TaskFilter({ filters, onFilterChange, onReset }: TaskFilterProps
 
           {/* Contributor Filter */}
           <div className="space-y-2">
-            <label className="text-sm font-medium text-muted-foreground">Contributor</label>
+            <label htmlFor="filter-contributor" className="text-sm font-medium text-muted-foreground">Contributor</label>
             <Select
               value={filters.contributor}
               onValueChange={(value) => handleChange("contributor", value)}
             >
-              <SelectTrigger>
+              <SelectTrigger id="filter-contributor">
                 <SelectValue placeholder="Select contributor" />
               </SelectTrigger>
               <SelectContent>
@@ -71,8 +71,9 @@ export function TaskFilter({ filters, onFilterChange, onReset }: TaskFilterProps
 
           {/* Min Reward */}
           <div className="space-y-2">
-            <label className="text-sm font-medium text-muted-foreground">Min Reward (XLM)</label>
+            <label htmlFor="filter-min-reward" className="text-sm font-medium text-muted-foreground">Min Reward (XLM)</label>
             <Input
+              id="filter-min-reward"
               type="number"
               placeholder="0"
               value={filters.minReward}
@@ -82,8 +83,9 @@ export function TaskFilter({ filters, onFilterChange, onReset }: TaskFilterProps
 
           {/* Max Reward */}
           <div className="space-y-2">
-            <label className="text-sm font-medium text-muted-foreground">Max Reward (XLM)</label>
+            <label htmlFor="filter-max-reward" className="text-sm font-medium text-muted-foreground">Max Reward (XLM)</label>
             <Input
+              id="filter-max-reward"
               type="number"
               placeholder="1000"
               value={filters.maxReward}
@@ -95,8 +97,9 @@ export function TaskFilter({ filters, onFilterChange, onReset }: TaskFilterProps
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           {/* Start Date */}
           <div className="space-y-2">
-            <label className="text-sm font-medium text-muted-foreground">Completion Date From</label>
+            <label htmlFor="filter-start-date" className="text-sm font-medium text-muted-foreground">Completion Date From</label>
             <Input
+              id="filter-start-date"
               type="date"
               value={filters.startDate}
               onChange={(e) => handleChange("startDate", e.target.value)}
@@ -105,8 +108,9 @@ export function TaskFilter({ filters, onFilterChange, onReset }: TaskFilterProps
 
           {/* End Date */}
           <div className="space-y-2">
-            <label className="text-sm font-medium text-muted-foreground">Completion Date To</label>
+            <label htmlFor="filter-end-date" className="text-sm font-medium text-muted-foreground">Completion Date To</label>
             <Input
+              id="filter-end-date"
               type="date"
               value={filters.endDate}
               onChange={(e) => handleChange("endDate", e.target.value)}

@@ -80,7 +80,7 @@ export function Navbar() {
           type="button"
           aria-label={isMobileMenuOpen ? "Close navigation menu" : "Open navigation menu"}
           aria-expanded={isMobileMenuOpen}
-          aria-controls="mobile-navigation-menu"
+          aria-controls="mobile-menu"
           onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
           className="inline-flex items-center justify-center p-3 rounded-full text-[#E2E2E2] bg-[#101011] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#92F2FF] focus-visible:ring-offset-2 focus-visible:ring-offset-[#070A11]"
         >

@@ -18,11 +18,33 @@ function InputField({
   children: React.ReactNode;
   error?: string;
 }) {
+  const generatedId = React.useId();
+  const errorId = `${generatedId}-error`;
+
+  // Inject id and aria-describedby into the direct child so the <label htmlFor>
+  // and the error message are both programmatically linked to the input.
+  const enhancedChild =
+    React.isValidElement(children)
+      ? React.cloneElement(
+          children as React.ReactElement<React.HTMLAttributes<HTMLElement> & { id?: string }>,
+          {
+            id: (children as React.ReactElement<{ id?: string }>).props.id ?? generatedId,
+            ...(error
+              ? { "aria-invalid": "true" as const, "aria-describedby": errorId }
+              : {}),
+          },
+        )
+      : children;
+
   return (
     <div className="space-y-2">
-      <label className="text-sm font-medium text-foreground">{label}</label>
-      {children}
-      {error ? <p className="text-xs text-destructive">{error}</p> : null}
+      <label htmlFor={generatedId} className="text-sm font-medium text-foreground">{label}</label>
+      {enhancedChild}
+      {error ? (
+        <p id={errorId} className="text-xs text-destructive" aria-live="polite">
+          {error}
+        </p>
+      ) : null}
     </div>
   );
 }
@@ -110,12 +132,13 @@ export default function ComponentTestPage() {
             <InputField label="Password">
               <Input type="password" placeholder="Enter password" />
             </InputField>
-            <InputField label="With Icon">
+            <div className="space-y-2">
+              <label htmlFor="demo-icon-input" className="text-sm font-medium text-foreground">With Icon</label>
               <div className="relative">
                 <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-                <Input className="pl-9" placeholder="Search..." />
+                <Input id="demo-icon-input" className="pl-9" placeholder="Search..." />
               </div>
-            </InputField>
+            </div>
             <InputField label="Error State" error="This field is required">
               <Input aria-invalid placeholder="Invalid input" />
             </InputField>
