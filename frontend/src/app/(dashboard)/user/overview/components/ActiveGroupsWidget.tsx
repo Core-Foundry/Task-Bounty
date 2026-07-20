@@ -1,84 +1,12 @@
 "use client";
 
-import React from "react";
+import React, { useEffect, useState } from "react";
 import { motion } from "framer-motion";
 import { Users, TrendingUp, ChevronRight, Wallet } from "lucide-react";
 import Image from "next/image";
 
-export type ActiveGroup = {
-  id: string;
-  name: string;
-  totalFunds: number;
-  members: number;
-  activity: "high" | "medium" | "low";
-  recentTransactions: number;
-  tokens: Array<{ name: string; icon: string; amount: string }>;
-};
-
-const MOCK_ACTIVE_GROUPS: ActiveGroup[] = [
-  {
-    id: "1",
-    name: "Paymesh Core",
-    totalFunds: 24500,
-    members: 8,
-    activity: "high",
-    recentTransactions: 42,
-    tokens: [
-      { name: "wBTC", icon: "/coin/Image (3).png", amount: "0.15" },
-      { name: "ETH", icon: "/coin/Image (4).png", amount: "3.2" },
-      { name: "USDC", icon: "/coin/Image (1).png", amount: "8,500" },
-    ],
-  },
-  {
-    id: "2",
-    name: "TechFlow DAO",
-    totalFunds: 18750,
-    members: 12,
-    activity: "high",
-    recentTransactions: 36,
-    tokens: [
-      { name: "ETH", icon: "/coin/Image (4).png", amount: "5.1" },
-      { name: "USDT", icon: "/coin/Image.png", amount: "6,200" },
-      { name: "XLM", icon: "/Stellar.png", amount: "15,000" },
-    ],
-  },
-  {
-    id: "3",
-    name: "Greenwave Fund",
-    totalFunds: 12300,
-    members: 5,
-    activity: "medium",
-    recentTransactions: 19,
-    tokens: [
-      { name: "USDC", icon: "/coin/Image (1).png", amount: "9,800" },
-      { name: "XLM", icon: "/Stellar.png", amount: "8,000" },
-    ],
-  },
-  {
-    id: "4",
-    name: "CryptoNest",
-    totalFunds: 8900,
-    members: 4,
-    activity: "medium",
-    recentTransactions: 14,
-    tokens: [
-      { name: "wBTC", icon: "/coin/Image (3).png", amount: "0.05" },
-      { name: "USDT", icon: "/coin/Image.png", amount: "4,200" },
-    ],
-  },
-  {
-    id: "5",
-    name: "DataPulse",
-    totalFunds: 5600,
-    members: 6,
-    activity: "low",
-    recentTransactions: 7,
-    tokens: [
-      { name: "ETH", icon: "/coin/Image (4).png", amount: "1.8" },
-      { name: "USDC", icon: "/coin/Image (1).png", amount: "1,200" },
-    ],
-  },
-];
+import type { DashboardGroup } from "@/constants/dashboard-groups";
+import type { DashboardStatistics } from "@/lib/dashboard-stats";
 
 const activityConfig = {
   high: {
@@ -142,9 +70,17 @@ const itemVariants = {
   },
 };
 
-function GroupRow({ group, index, maxFunds }: { group: ActiveGroup; index: number; maxFunds: number }) {
+function GroupRow({
+  group,
+  index,
+  maxFunds,
+}: {
+  group: DashboardGroup;
+  index: number;
+  maxFunds: number;
+}) {
   const activity = activityConfig[group.activity];
-  const fundPercentage = (group.totalFunds / maxFunds) * 100;
+  const fundPercentage = maxFunds > 0 ? (group.totalFunds / maxFunds) * 100 : 0;
 
   return (
     <motion.div
@@ -152,12 +88,10 @@ function GroupRow({ group, index, maxFunds }: { group: ActiveGroup; index: numbe
       whileHover={{ scale: 1.01, backgroundColor: "rgba(91, 99, 214, 0.04)" }}
       className="group relative flex items-center gap-3 sm:gap-4 p-3 sm:p-4 rounded-xl sm:rounded-2xl border border-white/[0.04] hover:border-[#5B63D6]/20 transition-all duration-300 cursor-pointer"
     >
-      {/* Rank Badge */}
       <div className="flex-shrink-0 w-8 h-8 sm:w-10 sm:h-10 rounded-lg sm:rounded-xl bg-gradient-to-br from-[#5B63D6]/20 to-[#5B63D6]/5 border border-[#5B63D6]/15 flex items-center justify-center">
         <span className="text-[#8B92E8] text-xs sm:text-sm font-bold">#{index + 1}</span>
       </div>
 
-      {/* Group Info */}
       <div className="flex-1 min-w-0">
         <div className="flex items-center gap-2 mb-1">
           <h3 className="text-white text-sm sm:text-[15px] font-semibold truncate">
@@ -171,7 +105,6 @@ function GroupRow({ group, index, maxFunds }: { group: ActiveGroup; index: numbe
           </div>
         </div>
 
-        {/* Progress Bar */}
         <div className="relative w-full h-1.5 rounded-full bg-white/[0.04] overflow-hidden mb-1.5">
           <motion.div
             className="absolute inset-y-0 left-0 rounded-full bg-gradient-to-r from-[#5B63D6] to-[#7C83EF]"
@@ -181,7 +114,6 @@ function GroupRow({ group, index, maxFunds }: { group: ActiveGroup; index: numbe
           />
         </div>
 
-        {/* Bottom Details */}
         <div className="flex items-center gap-3 sm:gap-4 text-[10px] sm:text-xs text-[#7A8BA0]">
           <span className="flex items-center gap-1">
             <Users className="w-3 h-3" />
@@ -191,11 +123,10 @@ function GroupRow({ group, index, maxFunds }: { group: ActiveGroup; index: numbe
             <TrendingUp className="w-3 h-3" />
             {group.recentTransactions} txns
           </span>
-          {/* Token Avatars */}
           <div className="flex items-center -space-x-1.5 ml-auto">
             {group.tokens.slice(0, 3).map((token, i) => (
               <div
-                key={i}
+                key={`${token.name}-${i}`}
                 className="w-4 h-4 sm:w-5 sm:h-5 rounded-full border border-[#0A0B0F] overflow-hidden bg-[#1a1d29]"
               >
                 <Image
@@ -216,7 +147,6 @@ function GroupRow({ group, index, maxFunds }: { group: ActiveGroup; index: numbe
         </div>
       </div>
 
-      {/* Total Funds */}
       <div className="flex-shrink-0 text-right">
         <p className="text-white text-sm sm:text-base font-bold tabular-nums">
           {formatCurrency(group.totalFunds)}
@@ -224,17 +154,60 @@ function GroupRow({ group, index, maxFunds }: { group: ActiveGroup; index: numbe
         <p className="text-[#5B6FE8] text-[10px] sm:text-xs font-medium mt-0.5">total funds</p>
       </div>
 
-      {/* Chevron */}
       <ChevronRight className="w-4 h-4 text-[#3A3F5C] group-hover:text-[#5B63D6] transition-colors flex-shrink-0" />
     </motion.div>
   );
 }
 
 export default function ActiveGroupsWidget() {
-  const groups = MOCK_ACTIVE_GROUPS;
-  const maxFunds = Math.max(...groups.map((g) => g.totalFunds));
-  const totalAllFunds = groups.reduce((sum, g) => sum + g.totalFunds, 0);
-  const totalMembers = groups.reduce((sum, g) => sum + g.members, 0);
+  const [stats, setStats] = useState<DashboardStatistics | null>(null);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    async function loadStats() {
+      try {
+        const response = await fetch("/api/dashboard/stats", { cache: "no-store" });
+        if (!response.ok) {
+          throw new Error(`Failed to load dashboard stats (${response.status})`);
+        }
+
+        const body = (await response.json()) as {
+          ok: boolean;
+          stats: DashboardStatistics;
+        };
+
+        if (!body.ok) {
+          throw new Error("Dashboard stats response was not successful");
+        }
+
+        if (!cancelled) {
+          setStats(body.stats);
+          setError(null);
+        }
+      } catch (loadError) {
+        if (!cancelled) {
+          setError(
+            loadError instanceof Error
+              ? loadError.message
+              : "Failed to load dashboard statistics",
+          );
+        }
+      }
+    }
+
+    void loadStats();
+
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  const groups = stats?.groups ?? [];
+  const maxFunds = stats?.maxFunds ?? 0;
+  const totalAllFunds = stats?.totalFunds ?? 0;
+  const totalMembers = stats?.totalMembers ?? 0;
 
   return (
     <motion.div
@@ -244,7 +217,6 @@ export default function ActiveGroupsWidget() {
       className="w-full"
     >
       <div className="bg-[#0A0B0F]/60 backdrop-blur-2xl rounded-2xl sm:rounded-3xl border border-white/[0.06] shadow-[0_8px_40px_rgba(0,0,0,0.4)] overflow-hidden">
-        {/* Header */}
         <div className="px-4 sm:px-6 pt-5 sm:pt-6 pb-4 sm:pb-5 border-b border-white/[0.04]">
           <div className="flex items-center justify-between mb-3 sm:mb-4">
             <div className="flex items-center gap-2.5 sm:gap-3">
@@ -265,14 +237,13 @@ export default function ActiveGroupsWidget() {
             </button>
           </div>
 
-          {/* Summary Stats Row */}
           <div className="grid grid-cols-3 gap-2 sm:gap-3">
             <div className="bg-white/[0.02] rounded-lg sm:rounded-xl px-3 py-2 sm:px-4 sm:py-3 border border-white/[0.03]">
               <p className="text-[#5A6578] text-[10px] sm:text-[11px] font-medium uppercase tracking-wider">
                 Total Funds
               </p>
               <p className="text-white text-sm sm:text-lg font-bold mt-0.5 tabular-nums">
-                {formatCurrency(totalAllFunds)}
+                {stats ? formatCurrency(totalAllFunds) : "—"}
               </p>
             </div>
             <div className="bg-white/[0.02] rounded-lg sm:rounded-xl px-3 py-2 sm:px-4 sm:py-3 border border-white/[0.03]">
@@ -280,7 +251,7 @@ export default function ActiveGroupsWidget() {
                 Active Groups
               </p>
               <p className="text-white text-sm sm:text-lg font-bold mt-0.5">
-                {groups.length}
+                {stats ? groups.length : "—"}
               </p>
             </div>
             <div className="bg-white/[0.02] rounded-lg sm:rounded-xl px-3 py-2 sm:px-4 sm:py-3 border border-white/[0.03]">
@@ -288,13 +259,12 @@ export default function ActiveGroupsWidget() {
                 Members
               </p>
               <p className="text-white text-sm sm:text-lg font-bold mt-0.5">
-                {totalMembers}
+                {stats ? totalMembers : "—"}
               </p>
             </div>
           </div>
         </div>
 
-        {/* Groups List */}
         <motion.div
           variants={containerVariants}
           initial="hidden"
@@ -306,15 +276,22 @@ export default function ActiveGroupsWidget() {
             [&::-webkit-scrollbar-thumb]:rounded-full
             [&::-webkit-scrollbar-thumb:hover]:bg-white/20"
         >
-          {groups.map((group, index) => (
-            <GroupRow key={group.id} group={group} index={index} maxFunds={maxFunds} />
-          ))}
+          {error ? (
+            <p className="text-center text-sm text-red-400 py-8">{error}</p>
+          ) : !stats ? (
+            <p className="text-center text-sm text-[#5A6578] py-8">Loading groups…</p>
+          ) : (
+            groups.map((group, index) => (
+              <GroupRow key={group.id} group={group} index={index} maxFunds={maxFunds} />
+            ))
+          )}
         </motion.div>
 
-        {/* Footer */}
         <div className="px-4 sm:px-6 py-3 sm:py-4 border-t border-white/[0.04] bg-white/[0.01]">
           <p className="text-[#3A3F5C] text-[10px] sm:text-[11px] text-center font-medium">
-            Showing top {groups.length} groups by activity • Updated just now
+            {stats
+              ? `Showing top ${groups.length} groups by activity • Updated just now`
+              : "Loading dashboard statistics…"}
           </p>
         </div>
       </div>

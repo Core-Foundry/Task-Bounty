@@ -192,7 +192,7 @@ fn test_get_groups_by_creator_multiple() {
         1,
         &token,
     );
-    let _id2 = create_test_group(
+    let id2 = create_test_group(
         &test_env.env,
         &test_env.autoshare_contract,
         &creator2,
@@ -209,10 +209,15 @@ fn test_get_groups_by_creator_multiple() {
         &token,
     );
 
-    let groups = client.get_groups_by_creator(&creator1);
+    let mut groups = client.get_groups_by_creator(&creator1);
     assert_eq!(groups.len(), 2);
     assert_eq!(groups.get(0).unwrap().id, id1);
     assert_eq!(groups.get(1).unwrap().id, id3);
+
+    // Creator index must ignore other creators' groups (no full-table scan semantics).
+    groups = client.get_groups_by_creator(&creator2);
+    assert_eq!(groups.len(), 1);
+    assert_eq!(groups.get(0).unwrap().id, id2);
 }
 
 #[test]

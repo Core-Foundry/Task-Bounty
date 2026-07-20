@@ -10,6 +10,8 @@ use soroban_sdk::{contracttype, token, Address, BytesN, Env, String, Vec};
 pub enum DataKey {
     AutoShare(BytesN<32>),
     AllGroups,
+    /// Indexed group IDs owned by a creator — avoids full AllGroups scans for dashboard queries.
+    CreatorGroups(Address),
     Admin,
     SupportedTokens,
     UsageFee,
@@ -82,6 +84,18 @@ pub fn create_autoshare(
     all_groups.push_back(id.clone());
     env.storage().persistent().set(&all_groups_key, &all_groups);
 
+    // Maintain per-creator index for efficient dashboard lookups
+    let creator_groups_key = DataKey::CreatorGroups(creator.clone());
+    let mut creator_groups: Vec<BytesN<32>> = env
+        .storage()
+        .persistent()
+        .get(&creator_groups_key)
+        .unwrap_or(Vec::new(&env));
+    creator_groups.push_back(id.clone());
+    env.storage()
+        .persistent()
+        .set(&creator_groups_key, &creator_groups);
+
     // Initialize empty members list
     let members_key = DataKey::GroupMembers(id.clone());
     let empty_members: Vec<GroupMember> = Vec::new(&env);
@@ -127,12 +141,18 @@ pub fn get_all_groups(env: Env) -> Vec<AutoShareDetails> {
 }
 
 pub fn get_groups_by_creator(env: Env, creator: Address) -> Vec<AutoShareDetails> {
-    let all_groups = get_all_groups(env.clone());
-    let mut result: Vec<AutoShareDetails> = Vec::new(&env);
+    // Use the creator index instead of scanning every group (O(creator) vs O(all)).
+    let creator_groups_key = DataKey::CreatorGroups(creator);
+    let group_ids: Vec<BytesN<32>> = env
+        .storage()
+        .persistent()
+        .get(&creator_groups_key)
+        .unwrap_or(Vec::new(&env));
 
-    for group in all_groups.iter() {
-        if group.creator == creator {
-            result.push_back(group);
+    let mut result: Vec<AutoShareDetails> = Vec::new(&env);
+    for id in group_ids.iter() {
+        if let Ok(details) = get_autoshare(env.clone(), id) {
+            result.push_back(details);
         }
     }
     result
