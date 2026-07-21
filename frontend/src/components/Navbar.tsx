@@ -78,7 +78,6 @@ export function Navbar() {
         <ConnectWalletButton />
         <button
           type="button"
-          aria-label={isMobileMenuOpen ? "Close navigation menu" : "Open navigation menu"}
           aria-expanded={isMobileMenuOpen}
           aria-controls="mobile-menu"
           onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
