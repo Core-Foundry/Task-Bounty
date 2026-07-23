@@ -6,6 +6,7 @@ pub mod base {
     pub mod errors;
     pub mod events;
     pub mod types;
+    pub mod validation;
 }
 
 pub mod interfaces {
@@ -249,3 +250,11 @@ pub mod test_utils;
 #[cfg(test)]
 #[path = "tests/test_utils_test.rs"]
 mod test_utils_test;
+
+#[cfg(test)]
+#[path = "tests/benchmark_test.rs"]
+mod benchmark_test;
+
+#[cfg(test)]
+#[path = "tests/validation_test.rs"]
+mod validation_test;

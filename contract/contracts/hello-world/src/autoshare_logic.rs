@@ -4,6 +4,9 @@ use crate::base::events::{
     GroupActivated, GroupDeactivated, Withdrawal,
 };
 use crate::base::types::{AutoShareDetails, GroupMember, PaymentHistory};
+use crate::base::validation::{
+    validate_fee, validate_name, validate_usage_count, validate_withdraw_amount,
+};
 use soroban_sdk::{contracttype, token, Address, BytesN, Env, String, Vec};
 
 #[contracttype]
@@ -34,16 +37,15 @@ pub fn create_autoshare(
         return Err(Error::ContractPaused);
     }
 
+    // --- Input validation (Issue #45) ---
+    validate_name(&name)?;
+    validate_usage_count(usage_count)?;
+
     let key = DataKey::AutoShare(id.clone());
 
     // Check if it already exists to prevent overwriting
     if env.storage().persistent().has(&key) {
         return Err(Error::AlreadyExists);
-    }
-
-    // Validate usage count
-    if usage_count == 0 {
-        return Err(Error::InvalidUsageCount);
     }
 
     // Verify token is supported
@@ -385,9 +387,9 @@ pub fn is_token_supported(env: Env, token: Address) -> bool {
 pub fn set_usage_fee(env: Env, fee: u32, admin: Address) -> Result<(), Error> {
     admin.require_auth();
     require_admin(&env, &admin)?;
-    if fee == 0 {
-        return Err(Error::InvalidAmount);
-    }
+
+    // --- Input validation (Issue #45) ---
+    validate_fee(fee)?;
 
     let fee_key = DataKey::UsageFee;
     env.storage().persistent().set(&fee_key, &fee);
@@ -417,10 +419,8 @@ pub fn topup_subscription(
         return Err(Error::ContractPaused);
     }
 
-    // Validate usage count
-    if additional_usages == 0 {
-        return Err(Error::InvalidUsageCount);
-    }
+    // --- Input validation (Issue #45) ---
+    validate_usage_count(additional_usages)?;
 
     // Verify group exists
     let key = DataKey::AutoShare(id.clone());
@@ -590,7 +590,9 @@ pub fn update_members(
         return Err(Error::GroupInactive);
     }
 
-    // Validate new members
+    // --- Input validation (Issue #45) ---
+    // Validate new members: non-empty, no duplicates, percentages sum to 100,
+    // each percentage in [1, 100], count ≤ MAX_MEMBERS.
     if new_members.is_empty() {
         return Err(Error::EmptyMembers);
     }
@@ -599,6 +601,9 @@ pub fn update_members(
     let mut seen_addresses = Vec::new(&env);
 
     for member in new_members.iter() {
+        if member.percentage == 0 || member.percentage > 100 {
+            return Err(Error::InvalidInput);
+        }
         total_percentage += member.percentage;
 
         for seen in seen_addresses.iter() {
@@ -720,9 +725,8 @@ pub fn withdraw(
     admin.require_auth();
     require_admin(&env, &admin)?;
 
-    if amount <= 0 {
-        return Err(Error::InvalidAmount);
-    }
+    // --- Input validation (Issue #45) ---
+    validate_withdraw_amount(amount)?;
 
     let contract_balance = get_contract_balance(env.clone(), token.clone());
     if contract_balance < amount {
