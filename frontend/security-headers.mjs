@@ -83,7 +83,7 @@ export const SECURITY_HEADERS = [
   },
   {
     key: "X-Frame-Options",
-    value: "SAMEORIGIN",
+    value: "DENY",
   },
   {
     key: "Referrer-Policy",
@@ -91,7 +91,7 @@ export const SECURITY_HEADERS = [
   },
   {
     key: "Permissions-Policy",
-    value: "camera=(), microphone=(), geolocation=(), payment=()",
+    value: "geolocation=(), microphone=(), camera=()",
   },
   {
     key: "X-DNS-Prefetch-Control",

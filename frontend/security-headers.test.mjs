@@ -42,6 +42,47 @@ describe("SECURITY_HEADERS", () => {
       SECURITY_HEADERS.map((h) => h.key),
     );
   });
+
+  // Exact-value assertions for all #82 required headers
+  it("sets HSTS with 2-year max-age, includeSubDomains, and preload", () => {
+    assert.equal(
+      getSecurityHeaderValue(SECURITY_HEADERS, "Strict-Transport-Security"),
+      "max-age=63072000; includeSubDomains; preload",
+    );
+  });
+
+  it("sets X-Content-Type-Options to nosniff", () => {
+    assert.equal(
+      getSecurityHeaderValue(SECURITY_HEADERS, "X-Content-Type-Options"),
+      "nosniff",
+    );
+  });
+
+  it("sets X-Frame-Options to DENY", () => {
+    assert.equal(
+      getSecurityHeaderValue(SECURITY_HEADERS, "X-Frame-Options"),
+      "DENY",
+    );
+  });
+
+  it("sets Referrer-Policy to strict-origin-when-cross-origin", () => {
+    assert.equal(
+      getSecurityHeaderValue(SECURITY_HEADERS, "Referrer-Policy"),
+      "strict-origin-when-cross-origin",
+    );
+  });
+
+  it("sets Permissions-Policy blocking geolocation, microphone, and camera", () => {
+    const value = getSecurityHeaderValue(SECURITY_HEADERS, "Permissions-Policy");
+    assert.ok(value.includes("geolocation=()"), "Permissions-Policy must block geolocation");
+    assert.ok(value.includes("microphone=()"), "Permissions-Policy must block microphone");
+    assert.ok(value.includes("camera=()"), "Permissions-Policy must block camera");
+  });
+
+  it("CSP includes default-src 'self'", () => {
+    const csp = getSecurityHeaderValue(SECURITY_HEADERS, "Content-Security-Policy");
+    assert.ok(csp.startsWith("default-src 'self'"), "CSP must start with default-src 'self'");
+  });
 });
 
 describe("buildContentSecurityPolicy", () => {
@@ -92,7 +133,7 @@ describe("getSecurityHeaderValue", () => {
     );
     assert.equal(
       getSecurityHeaderValue(SECURITY_HEADERS, "X-Frame-Options"),
-      "SAMEORIGIN",
+      "DENY",
     );
   });
 
