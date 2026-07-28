@@ -810,4 +810,224 @@ fn test_e2e_multiple_contributors_flow() {
     assert_eq!(sub_b.status, SubmissionStatus::Approved);
 }
 
+#[test]
+fn test_successful_reward_claim() {
+    let (env, poster, contributor, _, token_client, contract_id) = setup_test();
+    let client = TaskBountyContractClient::new(&env, &contract_id);
+
+    let reward = 10_000_000;
+
+    // Record balances before task creation
+    let poster_balance_before = token_client.balance(&poster);
+    let contributor_balance_before = token_client.balance(&contributor);
+    let contract_balance_before = token_client.balance(&contract_id);
+
+    // Create task (reward escrowed into contract)
+    let task_id = client.create_task(
+        &poster,
+        &String::from_str(&env, "Reward Claim Task"),
+        &String::from_str(&env, "Test successful reward payout"),
+        &token_client.address,
+        &reward,
+        &(env.ledger().timestamp() + 86_400),
+        &1,
+    );
+
+    // Balances after task creation: poster pays, contract holds
+    assert_eq!(token_client.balance(&poster), poster_balance_before - reward);
+    assert_eq!(token_client.balance(&contract_id), contract_balance_before + reward);
+
+    // Submit work
+    let submission_id = client.submit_work(
+        &task_id,
+        &contributor,
+        &String::from_str(&env, "ipfs://QmRewardClaim"),
+        &String::from_str(&env, "Completed work for reward"),
+    );
+
+    // Contract still holds reward after submission
+    assert_eq!(token_client.balance(&contract_id), contract_balance_before + reward);
+
+    // Approve submission — reward transfers to contributor
+    client.approve_submission(&task_id, &submission_id, &poster);
+
+    // Validate final balances
+    assert_eq!(
+        token_client.balance(&contributor),
+        contributor_balance_before + reward,
+        "Contributor should receive the full reward"
+    );
+    assert_eq!(
+        token_client.balance(&poster),
+        poster_balance_before - reward,
+        "Poster should have paid the reward"
+    );
+    assert_eq!(
+        token_client.balance(&contract_id),
+        contract_balance_before,
+        "Contract balance should return to pre-task level after payout"
+    );
+
+    // Validate statuses
+    let task = client.get_task(&task_id);
+    assert_eq!(task.status, TaskStatus::Completed);
+
+    let submission = client.get_submission(&submission_id);
+    assert_eq!(submission.status, SubmissionStatus::Approved);
+}
+
+#[test]
+#[should_panic(expected = "Error(Contract, #6)")]
+fn test_double_claim_prevention() {
+    let (env, poster, contributor, _, token_client, contract_id) = setup_test();
+    let client = TaskBountyContractClient::new(&env, &contract_id);
+
+    let task_id = client.create_task(
+        &poster,
+        &String::from_str(&env, "Double Claim Task"),
+        &String::from_str(&env, "Prevent claiming reward twice"),
+        &token_client.address,
+        &10_000_000,
+        &(env.ledger().timestamp() + 86_400),
+        &1,
+    );
+
+    let submission_id = client.submit_work(
+        &task_id,
+        &contributor,
+        &String::from_str(&env, "ipfs://QmDoubleClaim"),
+        &String::from_str(&env, "Work submission"),
+    );
+
+    // First approval should succeed
+    client.approve_submission(&task_id, &submission_id, &poster);
+
+    // Second approval should panic with InvalidSubmissionStatus (Error #6)
+    // because the submission is already Approved (not Pending)
+    client.approve_submission(&task_id, &submission_id, &poster);
+}
+
+#[test]
+#[should_panic(expected = "Error(Contract, #3)")]
+fn test_unauthorized_claim_rejection() {
+    let (env, poster, contributor, _, token_client, contract_id) = setup_test();
+    let client = TaskBountyContractClient::new(&env, &contract_id);
+
+    let task_id = client.create_task(
+        &poster,
+        &String::from_str(&env, "Unauthorized Claim Task"),
+        &String::from_str(&env, "Reject unauthorized reward claim"),
+        &token_client.address,
+        &10_000_000,
+        &(env.ledger().timestamp() + 86_400),
+        &1,
+    );
+
+    let submission_id = client.submit_work(
+        &task_id,
+        &contributor,
+        &String::from_str(&env, "ipfs://QmUnauthorized"),
+        &String::from_str(&env, "Work submission"),
+    );
+
+    // Generate a random unauthorized address to attempt approval
+    let unauthorized = Address::generate(&env);
+
+    // Attempting to approve with an address that is not the task poster
+    // should panic with Unauthorized (Error #3)
+    client.approve_submission(&task_id, &submission_id, &unauthorized);
+}
+
+#[test]
+fn test_contract_balance_validation() {
+    let (env, poster, contributor, _, token_client, contract_id) = setup_test();
+    let client = TaskBountyContractClient::new(&env, &contract_id);
+
+    let reward = 10_000_000;
+
+    // Phase 1: Initial state — contract holds no tokens
+    let zero_balance = token_client.balance(&contract_id);
+    assert_eq!(zero_balance, 0, "Contract should start with zero balance");
+
+    // Phase 2: Task creation — reward escrowed into contract
+    let task_id = client.create_task(
+        &poster,
+        &String::from_str(&env, "Balance Validation Task"),
+        &String::from_str(&env, "Validate contract balance throughout lifecycle"),
+        &token_client.address,
+        &reward,
+        &(env.ledger().timestamp() + 86_400),
+        &2,
+    );
+
+    assert_eq!(
+        token_client.balance(&contract_id),
+        reward,
+        "Contract should hold exactly the reward amount after task creation"
+    );
+
+    // Phase 3: Submission — no balance change
+    let sub_a = client.submit_work(
+        &task_id,
+        &contributor,
+        &String::from_str(&env, "ipfs://QmBalance"),
+        &String::from_str(&env, "First submission"),
+    );
+
+    assert_eq!(
+        token_client.balance(&contract_id),
+        reward,
+        "Contract balance unchanged after submission"
+    );
+
+    // Phase 4: Approval — reward paid out, contract empty
+    client.approve_submission(&task_id, &sub_a, &poster);
+
+    assert_eq!(
+        token_client.balance(&contract_id),
+        0,
+        "Contract balance should be zero after reward payout"
+    );
+
+    // Phase 5: Create another task and test cancel refunds contract balance
+    let poster_balance_before = token_client.balance(&poster);
+
+    let task_id2 = client.create_task(
+        &poster,
+        &String::from_str(&env, "Cancel Test Task"),
+        &String::from_str(&env, "Test cancel refund"),
+        &token_client.address,
+        &reward,
+        &(env.ledger().timestamp() + 86_400),
+        &1,
+    );
+
+    assert_eq!(
+        token_client.balance(&contract_id),
+        reward,
+        "Contract holds reward for second task"
+    );
+
+    // Cancel the task — refund should go back to poster
+    client.cancel_task(&task_id2, &poster);
+
+    assert_eq!(
+        token_client.balance(&contract_id),
+        0,
+        "Contract balance should be zero after cancel refund"
+    );
+    assert_eq!(
+        token_client.balance(&poster),
+        poster_balance_before,
+        "Poster should be fully refunded after cancellation"
+    );
+
+    // Verify task states
+    let task1 = client.get_task(&task_id);
+    assert_eq!(task1.status, TaskStatus::Completed);
+
+    let task2 = client.get_task(&task_id2);
+    assert_eq!(task2.status, TaskStatus::Cancelled);
+}
+
 
