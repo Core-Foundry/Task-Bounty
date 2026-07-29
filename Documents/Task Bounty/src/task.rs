@@ -1,4 +1,4 @@
-use soroban_sdk::{Address, Env, String, token};
+use soroban_sdk::{panic_with_error, token, Address, Env, String};
 use crate::types::{Task, TaskStatus, Error};
 use crate::storage;
 use crate::events;
@@ -38,7 +38,9 @@ pub fn create_task(
     // Transfer reward to contract (escrow)
     let contract_address = env.current_contract_address();
     let token_client = token::Client::new(env, &token);
-    token_client.transfer(&poster, &contract_address, &reward);
+    if token_client.try_transfer(&poster, &contract_address, &reward).is_err() {
+        panic_with_error!(env, Error::PaymentFailed);
+    }
 
     // Create task
     let task_id = storage::increment_task_counter(env);
@@ -100,8 +102,13 @@ pub fn cancel_task(env: &Env, task_id: u64, poster: Address) {
     // Refund poster
     let contract_address = env.current_contract_address();
     let token_client = token::Client::new(env, &task.token);
-    token_client.transfer(&contract_address, &poster, &task.reward);
+    if token_client
+        .try_transfer(&contract_address, &poster, &task.reward)
+        .is_err()
+    {
+        panic_with_error!(env, Error::PaymentFailed);
+    }
 
     // Emit event
-    events::emit_task_cancelled(env, task_id, &poster);
+    events::emit_task_cancelled(env, task_id, &poster, task.reward);
 }

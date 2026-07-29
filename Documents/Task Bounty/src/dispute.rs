@@ -1,4 +1,4 @@
-use soroban_sdk::{Address, Env, String};
+use soroban_sdk::{panic_with_error, Address, Env, String};
 use crate::types::{Dispute, TaskStatus, SubmissionStatus, Error};
 use crate::storage;
 use crate::events;

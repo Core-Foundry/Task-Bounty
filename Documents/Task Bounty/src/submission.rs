@@ -1,4 +1,4 @@
-use soroban_sdk::{Address, Env, String, token};
+use soroban_sdk::{panic_with_error, token, Address, Env, String};
 use crate::types::{Submission, SubmissionStatus, TaskStatus, Error};
 use crate::storage;
 use crate::events;
@@ -123,7 +123,12 @@ pub fn approve_submission(
     // Transfer reward to contributor
     let contract_address = env.current_contract_address();
     let token_client = token::Client::new(env, &task.token);
-    token_client.transfer(&contract_address, &submission.contributor, &task.reward);
+    if token_client
+        .try_transfer(&contract_address, &submission.contributor, &task.reward)
+        .is_err()
+    {
+        panic_with_error!(env, Error::PaymentFailed);
+    }
 
     // Emit event
     events::emit_submission_approved(

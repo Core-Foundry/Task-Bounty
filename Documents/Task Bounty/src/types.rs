@@ -1,4 +1,4 @@
-use soroban_sdk::{contracttype, Address, String};
+use soroban_sdk::{contracterror, contracttype, Address, String};
 
 /// Task status enum
 #[contracttype]
@@ -63,7 +63,7 @@ pub struct Dispute {
 }
 
 /// Error codes
-#[contracttype]
+#[contracterror]
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 #[repr(u32)]
 pub enum Error {

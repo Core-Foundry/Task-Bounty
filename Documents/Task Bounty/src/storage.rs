@@ -1,4 +1,4 @@
-use soroban_sdk::{Address, Env, Vec};
+use soroban_sdk::{symbol_short, Address, Env, Vec};
 use crate::types::{Task, Submission, Dispute};
 
 // Storage keys
@@ -10,39 +10,39 @@ const ADMIN: &str = "ADMIN";
 
 // Task storage
 pub fn get_task(env: &Env, task_id: u64) -> Task {
-    let key = (b"TASK", task_id);
+    let key = (symbol_short!("TASK"), task_id);
     env.storage().persistent().get(&key).unwrap()
 }
 
 pub fn set_task(env: &Env, task: &Task) {
-    let key = (b"TASK", task.id);
+    let key = (symbol_short!("TASK"), task.id);
     env.storage().persistent().set(&key, task);
 }
 
 pub fn task_exists(env: &Env, task_id: u64) -> bool {
-    let key = (b"TASK", task_id);
+    let key = (symbol_short!("TASK"), task_id);
     env.storage().persistent().has(&key)
 }
 
 // Submission storage
 pub fn get_submission(env: &Env, submission_id: u64) -> Submission {
-    let key = (b"SUB", submission_id);
+    let key = (symbol_short!("SUB"), submission_id);
     env.storage().persistent().get(&key).unwrap()
 }
 
 pub fn set_submission(env: &Env, submission: &Submission) {
-    let key = (b"SUB", submission.id);
+    let key = (symbol_short!("SUB"), submission.id);
     env.storage().persistent().set(&key, submission);
 }
 
 pub fn submission_exists(env: &Env, submission_id: u64) -> bool {
-    let key = (b"SUB", submission_id);
+    let key = (symbol_short!("SUB"), submission_id);
     env.storage().persistent().has(&key)
 }
 
 // Task submissions mapping
 pub fn get_task_submissions(env: &Env, task_id: u64) -> Vec<u64> {
-    let key = (b"TASK_SUBS", task_id);
+    let key = (symbol_short!("TASKSUBS"), task_id);
     env.storage()
         .persistent()
         .get(&key)
@@ -50,7 +50,7 @@ pub fn get_task_submissions(env: &Env, task_id: u64) -> Vec<u64> {
 }
 
 pub fn add_task_submission(env: &Env, task_id: u64, submission_id: u64) {
-    let key = (b"TASK_SUBS", task_id);
+    let key = (symbol_short!("TASKSUBS"), task_id);
     let mut submissions = get_task_submissions(env, task_id);
     submissions.push_back(submission_id);
     env.storage().persistent().set(&key, &submissions);
@@ -58,33 +58,33 @@ pub fn add_task_submission(env: &Env, task_id: u64, submission_id: u64) {
 
 // Contributor submission tracking
 pub fn has_contributor_submitted(env: &Env, task_id: u64, contributor: &Address) -> bool {
-    let key = (b"HAS_SUB", task_id, contributor);
+    let key = (symbol_short!("HASSUB"), task_id, contributor);
     env.storage().persistent().has(&key)
 }
 
 pub fn mark_contributor_submitted(env: &Env, task_id: u64, contributor: &Address) {
-    let key = (b"HAS_SUB", task_id, contributor);
+    let key = (symbol_short!("HASSUB"), task_id, contributor);
     env.storage().persistent().set(&key, &true);
 }
 
 // Dispute storage
 pub fn get_dispute(env: &Env, dispute_id: u64) -> Dispute {
-    let key = (b"DISP", dispute_id);
+    let key = (symbol_short!("DISP"), dispute_id);
     env.storage().persistent().get(&key).unwrap()
 }
 
 pub fn set_dispute(env: &Env, dispute: &Dispute) {
-    let key = (b"DISP", dispute.id);
+    let key = (symbol_short!("DISP"), dispute.id);
     env.storage().persistent().set(&key, dispute);
 }
 
 pub fn has_active_dispute(env: &Env, task_id: u64, submission_id: u64) -> bool {
-    let key = (b"DISP_ACT", task_id, submission_id);
+    let key = (symbol_short!("DISPACT"), task_id, submission_id);
     env.storage().persistent().has(&key)
 }
 
 pub fn set_active_dispute(env: &Env, task_id: u64, submission_id: u64, dispute_id: u64) {
-    let key = (b"DISP_ACT", task_id, submission_id);
+    let key = (symbol_short!("DISPACT"), task_id, submission_id);
     env.storage().persistent().set(&key, &dispute_id);
 }
 
