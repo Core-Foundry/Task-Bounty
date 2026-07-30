@@ -35,10 +35,41 @@ interface BountyFiltersProps {
 }
 
 export function BountyFilters({ filters, onFilterChange, onReset }: BountyFiltersProps) {
+  const activeFilterCount = [
+    filters.search,
+    filters.minReward,
+    filters.maxReward,
+    filters.difficulty,
+    filters.sort,
+    filters.technology,
+    filters.organization,
+  ].filter(Boolean).length;
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+  };
+
   return (
-    <div className="bg-[#0A0B0F]/40 backdrop-blur-xl rounded-xl sm:rounded-2xl lg:rounded-3xl border border-white/10 shadow-2xl p-4 sm:p-6 lg:p-8 w-full">
+    <form
+      noValidate
+      role="search"
+      aria-label="Filter bounties"
+      onSubmit={handleSubmit}
+      className="bg-[#0A0B0F]/40 backdrop-blur-xl rounded-xl sm:rounded-2xl lg:rounded-3xl border border-white/10 shadow-2xl p-4 sm:p-6 lg:p-8 w-full"
+    >
       <div className="flex flex-col gap-6">
-        <h2 className="text-2xl font-bold text-white">Filter Bounties</h2>
+        <div className="flex items-center justify-between">
+          <h2 className="text-2xl font-bold text-white">Filter Bounties</h2>
+          <span
+            className="text-sm text-muted-foreground"
+            aria-live="polite"
+            aria-atomic="true"
+          >
+            {activeFilterCount > 0
+              ? `${activeFilterCount} filter${activeFilterCount !== 1 ? "s" : ""} active`
+              : "No filters active"}
+          </span>
+        </div>
 
         {/* Keyword search */}
         <div className="space-y-2">
@@ -51,6 +82,7 @@ export function BountyFilters({ filters, onFilterChange, onReset }: BountyFilter
             placeholder="Search by title or description"
             value={filters.search}
             onChange={(e) => onFilterChange({ search: e.target.value })}
+            aria-label="Search bounties"
           />
         </div>
 
@@ -68,6 +100,7 @@ export function BountyFilters({ filters, onFilterChange, onReset }: BountyFilter
               onChange={(e) =>
                 onFilterChange({ minReward: e.target.value ? Number(e.target.value) : "" })
               }
+              inputMode="decimal"
             />
           </div>
 
@@ -84,6 +117,7 @@ export function BountyFilters({ filters, onFilterChange, onReset }: BountyFilter
               onChange={(e) =>
                 onFilterChange({ maxReward: e.target.value ? Number(e.target.value) : "" })
               }
+              inputMode="decimal"
             />
           </div>
 
@@ -100,7 +134,7 @@ export function BountyFilters({ filters, onFilterChange, onReset }: BountyFilter
                 })
               }
             >
-              <SelectTrigger id="bounty-difficulty">
+              <SelectTrigger id="bounty-difficulty" aria-label="Select difficulty">
                 <SelectValue placeholder="Any difficulty" />
               </SelectTrigger>
               <SelectContent>
@@ -123,7 +157,7 @@ export function BountyFilters({ filters, onFilterChange, onReset }: BountyFilter
               value={filters.sort}
               onValueChange={(value) => onFilterChange({ sort: value as TaskSortOrder })}
             >
-              <SelectTrigger id="bounty-sort">
+              <SelectTrigger id="bounty-sort" aria-label="Select sort order">
                 <SelectValue placeholder="Sort by" />
               </SelectTrigger>
               <SelectContent>
@@ -173,6 +207,6 @@ export function BountyFilters({ filters, onFilterChange, onReset }: BountyFilter
           </Button>
         </div>
       </div>
-    </div>
+    </form>
   );
 }

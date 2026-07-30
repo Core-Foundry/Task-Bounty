@@ -37,6 +37,8 @@ export default function ContributorProfileCard() {
     setProfile((current) => ({ ...current, [key]: value }));
   };
 
+  const missingCount = completion.missingFields.length;
+
   return (
     <motion.div
       initial={{ opacity: 0, y: 10 }}
@@ -57,7 +59,12 @@ export default function ContributorProfileCard() {
           </div>
         </div>
         <div className="text-right">
-          <div className="text-2xl font-semibold text-white">{completion.percentage}%</div>
+          <div
+            className="text-2xl font-semibold text-white"
+            aria-hidden="true"
+          >
+            {completion.percentage}%
+          </div>
           <div className="text-xs uppercase tracking-[0.2em] text-[#5A6578]">
             complete
           </div>
@@ -65,7 +72,14 @@ export default function ContributorProfileCard() {
       </div>
 
       <div className="mt-5">
-        <div className="h-2 overflow-hidden rounded-full bg-[#1F2937]">
+        <div
+          role="progressbar"
+          aria-valuenow={completion.percentage}
+          aria-valuemin={0}
+          aria-valuemax={100}
+          aria-label={`Profile ${completion.percentage}% complete`}
+          className="h-2 overflow-hidden rounded-full bg-[#1F2937]"
+        >
           <div
             className="h-full rounded-full bg-gradient-to-r from-[#5B63D6] to-[#8B92E8] transition-all duration-300"
             style={{ width: `${completion.percentage}%` }}
@@ -73,10 +87,16 @@ export default function ContributorProfileCard() {
         </div>
       </div>
 
-      <div className="mt-5 grid gap-3">
+      <form
+        noValidate
+        aria-label="Contributor profile fields"
+        className="mt-5 grid gap-3"
+      >
         {PROFILE_FIELDS.map((field) => {
           const isComplete = Boolean(profile[field.key]?.trim());
           const isTextArea = field.key === "bio" || field.key === "skills";
+          const fieldId = `profile-${field.key}`;
+          const statusId = `status-${field.key}`;
 
           return (
             <div
@@ -89,29 +109,53 @@ export default function ContributorProfileCard() {
             >
               <div className="flex items-start gap-2">
                 {isComplete ? (
-                  <CheckCircle2 className="mt-1 h-4 w-4 text-emerald-400" />
+                  <CheckCircle2
+                    className="mt-1 h-4 w-4 text-emerald-400"
+                    aria-label="Filled"
+                  />
                 ) : (
-                  <Circle className="mt-1 h-4 w-4 text-[#5A6578]" />
+                  <Circle
+                    className="mt-1 h-4 w-4 text-[#5A6578]"
+                    aria-label="Missing"
+                  />
                 )}
                 <div className="flex-1">
                   <div className="flex items-center justify-between gap-2">
-                    <label className="text-sm font-medium text-white">{field.label}</label>
-                    <span className="text-xs text-[#5A6578]">
+                    <label
+                      htmlFor={fieldId}
+                      className="text-sm font-medium text-white"
+                    >
+                      {field.label}
+                    </label>
+                    <span
+                      id={statusId}
+                      className={`text-xs ${
+                        isComplete ? "text-emerald-400" : "text-[#5A6578]"
+                      }`}
+                    >
                       {isComplete ? "Filled" : "Missing"}
                     </span>
                   </div>
                   {isTextArea ? (
                     <textarea
+                      id={fieldId}
                       value={profile[field.key] ?? ""}
                       onChange={(event) => updateField(field.key, event.target.value)}
                       rows={2}
+                      aria-required="false"
+                      aria-invalid={!isComplete}
+                      aria-describedby={statusId}
                       className="mt-2 w-full rounded-lg border border-[#2F3547] bg-[#111827] px-3 py-2 text-sm text-white outline-none ring-0"
                       placeholder={`Add your ${field.label.toLowerCase()}`}
                     />
                   ) : (
                     <input
+                      id={fieldId}
                       value={profile[field.key] ?? ""}
                       onChange={(event) => updateField(field.key, event.target.value)}
+                      aria-required="false"
+                      aria-invalid={!isComplete}
+                      aria-describedby={statusId}
                       className="mt-2 w-full rounded-lg border border-[#2F3547] bg-[#111827] px-3 py-2 text-sm text-white outline-none ring-0"
                       placeholder={`Add your ${field.label.toLowerCase()}`}
                     />
@@ -121,18 +165,31 @@ export default function ContributorProfileCard() {
             </div>
           );
         })}
-      </div>
+      </form>
 
-      {completion.missingFields.length > 0 && (
-        <div className="mt-5 rounded-xl border border-amber-500/20 bg-amber-500/10 p-3">
-          <p className="text-sm font-medium text-amber-300">Suggested next steps</p>
-          <ul className="mt-2 space-y-1 text-sm text-amber-100/90">
-            {completion.missingFields.slice(0, 3).map((field) => (
-              <li key={field.key}>• Add your {field.label.toLowerCase()}</li>
-            ))}
-          </ul>
-        </div>
-      )}
+      <div
+        role="alert"
+        aria-live="polite"
+        className="mt-5"
+      >
+        {missingCount > 0 && (
+          <div className="rounded-xl border border-amber-500/20 bg-amber-500/10 p-3">
+            <p className="text-sm font-medium text-amber-300">Suggested next steps</p>
+            <ul className="mt-2 space-y-1 text-sm text-amber-100/90">
+              {completion.missingFields.slice(0, 3).map((field) => (
+                <li key={field.key}>• Add your {field.label.toLowerCase()}</li>
+              ))}
+            </ul>
+          </div>
+        )}
+        {missingCount === 0 && (
+          <div className="rounded-xl border border-emerald-500/20 bg-emerald-500/10 p-3">
+            <p className="text-sm font-medium text-emerald-300">
+              All profile fields are complete
+            </p>
+          </div>
+        )}
+      </div>
     </motion.div>
   );
 }

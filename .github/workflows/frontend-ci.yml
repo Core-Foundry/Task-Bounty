@@ -118,6 +118,19 @@ jobs:
           fi
 
       # -----------------------------------
+      # Code coverage report
+      # -----------------------------------
+      - name: Generate code coverage
+        run: |
+          if [ "${{ steps.pm.outputs.manager }}" = "pnpm" ]; then
+            pnpm test:coverage
+          elif [ "${{ steps.pm.outputs.manager }}" = "yarn" ]; then
+            yarn test:coverage
+          else
+            npm run test:coverage
+          fi
+
+      # -----------------------------------
       # Regression tests
       # -----------------------------------
       - name: Run regression tests

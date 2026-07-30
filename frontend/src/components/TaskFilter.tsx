@@ -1,4 +1,3 @@
-
 "use client";
 
 import React from "react";
@@ -27,11 +26,41 @@ export function TaskFilter({ filters, onFilterChange, onReset }: TaskFilterProps
     onFilterChange({ ...filters, [key]: value });
   };
 
+  const activeFilterCount = [
+    filters.category,
+    filters.contributor,
+    filters.minReward,
+    filters.maxReward,
+    filters.startDate,
+    filters.endDate,
+  ].filter(Boolean).length;
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+  };
+
   return (
-    <div className="bg-[#0A0B0F]/40 backdrop-blur-xl rounded-xl sm:rounded-2xl lg:rounded-3xl border border-white/10 shadow-2xl p-4 sm:p-6 lg:p-8 w-full">
+    <form
+      noValidate
+      role="search"
+      aria-label="Filter completed tasks"
+      onSubmit={handleSubmit}
+      className="bg-[#0A0B0F]/40 backdrop-blur-xl rounded-xl sm:rounded-2xl lg:rounded-3xl border border-white/10 shadow-2xl p-4 sm:p-6 lg:p-8 w-full"
+    >
       <div className="flex flex-col gap-6">
-        <h2 className="text-2xl font-bold text-white">Filter Completed Tasks</h2>
-        
+        <div className="flex items-center justify-between">
+          <h2 className="text-2xl font-bold text-white">Filter Completed Tasks</h2>
+          <span
+            className="text-sm text-muted-foreground"
+            aria-live="polite"
+            aria-atomic="true"
+          >
+            {activeFilterCount > 0
+              ? `${activeFilterCount} filter${activeFilterCount !== 1 ? "s" : ""} active`
+              : "No filters active"}
+          </span>
+        </div>
+
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
           {/* Category Filter */}
           <div className="space-y-2">
@@ -40,7 +69,7 @@ export function TaskFilter({ filters, onFilterChange, onReset }: TaskFilterProps
               value={filters.category}
               onValueChange={(value) => handleChange("category", value)}
             >
-              <SelectTrigger id="filter-category">
+              <SelectTrigger id="filter-category" aria-label="Select category">
                 <SelectValue placeholder="Select category" />
               </SelectTrigger>
               <SelectContent>
@@ -58,7 +87,7 @@ export function TaskFilter({ filters, onFilterChange, onReset }: TaskFilterProps
               value={filters.contributor}
               onValueChange={(value) => handleChange("contributor", value)}
             >
-              <SelectTrigger id="filter-contributor">
+              <SelectTrigger id="filter-contributor" aria-label="Select contributor">
                 <SelectValue placeholder="Select contributor" />
               </SelectTrigger>
               <SelectContent>
@@ -78,6 +107,7 @@ export function TaskFilter({ filters, onFilterChange, onReset }: TaskFilterProps
               placeholder="0"
               value={filters.minReward}
               onChange={(e) => handleChange("minReward", e.target.value ? Number(e.target.value) : "")}
+              inputMode="decimal"
             />
           </div>
 
@@ -90,6 +120,7 @@ export function TaskFilter({ filters, onFilterChange, onReset }: TaskFilterProps
               placeholder="1000"
               value={filters.maxReward}
               onChange={(e) => handleChange("maxReward", e.target.value ? Number(e.target.value) : "")}
+              inputMode="decimal"
             />
           </div>
         </div>
@@ -122,6 +153,6 @@ export function TaskFilter({ filters, onFilterChange, onReset }: TaskFilterProps
           <Button onClick={onReset} variant="outline">Reset Filters</Button>
         </div>
       </div>
-    </div>
+    </form>
   );
 }
