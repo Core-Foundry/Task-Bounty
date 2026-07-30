@@ -2,7 +2,8 @@
 
 import React from "react";
 import { motion } from "framer-motion";
-import { Users } from "lucide-react";
+import { Users, UserPlus } from "lucide-react";
+import EmptyState from "@/components/EmptyState";
 
 export default function GroupsPage() {
     return (
@@ -26,8 +27,13 @@ export default function GroupsPage() {
                 </div>
             </motion.div>
 
-            <div className="bg-[#0A0B0F]/40 backdrop-blur-xl rounded-xl sm:rounded-2xl lg:rounded-3xl border border-white/10 p-8 text-center">
-                <p className="text-[#5A6578]">Groups module coming soon...</p>
+            <div className="bg-[#0A0B0F]/40 backdrop-blur-xl rounded-xl sm:rounded-2xl lg:rounded-3xl border border-white/10">
+                <EmptyState
+                    icon={UserPlus}
+                    title="No groups yet"
+                    description="Create a payment group to split funds and manage distributions with your team."
+                    action={{ label: "Create Group" }}
+                />
             </div>
         </div>
     );

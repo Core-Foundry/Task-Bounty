@@ -2,8 +2,9 @@
 
 use super::*;
 use soroban_sdk::{
-    testutils::{Address as _, Ledger},
-    token, Address, Env, String,
+    symbol_short,
+    testutils::{Address as _, Events as _, Ledger},
+    token, Address, Env, IntoVal, String,
 };
 use types::{TaskStatus, SubmissionStatus};
 
@@ -50,7 +51,7 @@ fn test_create_task() {
         &poster,
         &title,
         &description,
-        &token_client.address(),
+        &token_client.address,
         &reward,
         &deadline,
         &3,
@@ -196,6 +197,7 @@ fn test_same_task_allowed_for_different_poster() {
     let (env, poster, _, _, token_client, contract_id) = setup_test();
     let client = TaskBountyContractClient::new(&env, &contract_id);
     let other_poster = Address::generate(&env);
+    token::StellarAssetClient::new(&env, &token_client.address).mint(&other_poster, &10_000_000);
 
     let title = String::from_str(&env, "Shared Task");
     let description = String::from_str(&env, "Same details, different poster");
@@ -371,7 +373,7 @@ fn test_full_bounty_workflow_from_creation_to_reward_claim() {
         &poster,
         &String::from_str(&env, "Build onboarding flow"),
         &String::from_str(&env, "Implement the first-time user experience"),
-        &token_client.address(),
+        &token_client.address,
         &reward,
         &(env.ledger().timestamp() + 86_400),
         &2,
@@ -465,6 +467,99 @@ fn test_cancel_task() {
     // Check status
     let task = client.get_task(&task_id);
     assert_eq!(task.status, TaskStatus::Cancelled);
+}
+
+#[test]
+fn test_cancel_task_emits_refund_event_with_amount() {
+    let (env, poster, _, _, token_client, contract_id) = setup_test();
+    let client = TaskBountyContractClient::new(&env, &contract_id);
+
+    let reward = 10_000_000;
+    let task_id = client.create_task(
+        &poster,
+        &String::from_str(&env, "Task"),
+        &String::from_str(&env, "Description"),
+        &token_client.address,
+        &reward,
+        &(env.ledger().timestamp() + 86400),
+        &1,
+    );
+
+    client.cancel_task(&task_id, &poster);
+
+    let events = env.events().all();
+    let (_contract, topics, data) = events.last().unwrap();
+    assert_eq!(
+        topics,
+        (symbol_short!("task"), symbol_short!("cancel")).into_val(&env)
+    );
+    let (event_task_id, event_poster, refunded_amount): (u64, Address, i128) =
+        data.into_val(&env);
+    assert_eq!(event_task_id, task_id);
+    assert_eq!(event_poster, poster);
+    assert_eq!(refunded_amount, reward);
+}
+
+#[test]
+fn test_cancel_task_after_deadline_still_refunds() {
+    let (env, poster, _, _, token_client, contract_id) = setup_test();
+    let client = TaskBountyContractClient::new(&env, &contract_id);
+
+    let reward = 10_000_000;
+    let poster_balance_before = token_client.balance(&poster);
+
+    let task_id = client.create_task(
+        &poster,
+        &String::from_str(&env, "Task"),
+        &String::from_str(&env, "Description"),
+        &token_client.address,
+        &reward,
+        &(env.ledger().timestamp() + 86400),
+        &1,
+    );
+
+    // Fast forward past the deadline without any approved submission.
+    env.ledger().with_mut(|li| {
+        li.timestamp += 86_401;
+    });
+
+    client.cancel_task(&task_id, &poster);
+
+    let poster_balance_after = token_client.balance(&poster);
+    assert_eq!(poster_balance_after, poster_balance_before);
+
+    let task = client.get_task(&task_id);
+    assert_eq!(task.status, TaskStatus::Cancelled);
+}
+
+#[test]
+#[should_panic(expected = "Error(Contract, #5)")] // InvalidTaskStatus
+fn test_cancel_task_after_approval_fails() {
+    let (env, poster, contributor, _, token_client, contract_id) = setup_test();
+    let client = TaskBountyContractClient::new(&env, &contract_id);
+
+    let task_id = client.create_task(
+        &poster,
+        &String::from_str(&env, "Task"),
+        &String::from_str(&env, "Description"),
+        &token_client.address,
+        &10_000_000,
+        &(env.ledger().timestamp() + 86400),
+        &1,
+    );
+
+    let submission_id = client.submit_work(
+        &task_id,
+        &contributor,
+        &String::from_str(&env, "ipfs://QmXxxx"),
+        &String::from_str(&env, "Work"),
+    );
+
+    client.approve_submission(&task_id, &submission_id, &poster);
+
+    // Reward has already been released to the contributor; the poster can no
+    // longer cancel and pull a refund out from under them.
+    client.cancel_task(&task_id, &poster);
 }
 
 #[test]
@@ -596,7 +691,7 @@ fn test_task_search_and_filtering() {
         &poster,
         &String::from_str(&env, "Write docs"),
         &String::from_str(&env, "Document the API surface"),
-        &token_client.address(),
+        &token_client.address,
         &10_000_000,
         &(base_deadline + 3_600),
         &2,
@@ -606,7 +701,7 @@ fn test_task_search_and_filtering() {
         &poster,
         &String::from_str(&env, "Build dashboard"),
         &String::from_str(&env, "Filter tasks by status and reward"),
-        &token_client.address(),
+        &token_client.address,
         &50_000_000,
         &(base_deadline + 7_200),
         &2,
@@ -748,7 +843,7 @@ fn test_e2e_multiple_contributors_flow() {
         &poster,
         &String::from_str(&env, "Build CLI tool"),
         &String::from_str(&env, "Create a command line interface"),
-        &token_client.address(),
+        &token_client.address,
         &reward,
         &(env.ledger().timestamp() + 86_400),
         &2,

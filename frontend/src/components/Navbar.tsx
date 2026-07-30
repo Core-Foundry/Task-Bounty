@@ -3,10 +3,13 @@
 import { useState, useEffect } from "react";
 import { Menu, X } from "lucide-react";
 import ConnectWalletButton from "./ConnectWalletButton";
+import NotificationBell from "./NotificationBell";
 import Image from "next/image";
+import { getPublicKey } from "@/hooks/stellar-wallets-kit";
 
 const NAV_ITEMS = [
   { name: "Overview", href: "/user/overview" },
+  { name: "Bounties", href: "/bounties" },
   { name: "Groups", href: "/groups" },
   { name: "Fundraising", href: "/fundraising" },
   { name: "Transactions", href: "/user/transactions" },
@@ -16,6 +19,27 @@ const NAV_ITEMS = [
 
 export function Navbar() {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const [walletAddress, setWalletAddress] = useState<string | null>(null);
+
+  // Poll the connected wallet address so the notification bell can subscribe
+  // to the right user's stream once a wallet connects (or disconnects).
+  useEffect(() => {
+    let cancelled = false;
+
+    async function syncWallet() {
+      const key = await getPublicKey();
+      if (!cancelled) {
+        setWalletAddress(key ?? null);
+      }
+    }
+
+    syncWallet();
+    const interval = setInterval(syncWallet, 5000);
+    return () => {
+      cancelled = true;
+      clearInterval(interval);
+    };
+  }, []);
 
   // Close menu when window is resized to desktop
   useEffect(() => {
@@ -69,12 +93,14 @@ export function Navbar() {
       </div>
 
       {/* Connect Button (Desktop) */}
-      <div className="hidden md:block">
+      <div className="hidden md:flex items-center gap-3">
+        <NotificationBell userId={walletAddress} />
         <ConnectWalletButton />
       </div>
 
       {/* Mobile menu button */}
       <div className="flex md:hidden items-center gap-3">
+        <NotificationBell userId={walletAddress} />
         <ConnectWalletButton />
         <button
           type="button"

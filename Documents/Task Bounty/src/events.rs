@@ -50,11 +50,11 @@ pub fn emit_submission_rejected(
     );
 }
 
-/// Emit TaskCancelled event
-pub fn emit_task_cancelled(env: &Env, task_id: u64, poster: &Address) {
+/// Emit TaskCancelled event (includes the refunded amount)
+pub fn emit_task_cancelled(env: &Env, task_id: u64, poster: &Address, refunded_amount: i128) {
     env.events().publish(
         (symbol_short!("task"), symbol_short!("cancel")),
-        (task_id, poster.clone()),
+        (task_id, poster.clone(), refunded_amount),
     );
 }
 
