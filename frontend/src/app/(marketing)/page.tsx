@@ -34,7 +34,7 @@ export default function Page() {
       <button
         type="button"
         onClick={() => setIsSharePopupOpen(true)}
-        className="fixed bottom-6 right-6 z-40 bg-linear-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 text-white p-4 rounded-full shadow-2xl transition-all transform hover:scale-110 flex items-center gap-2 group"
+        className="fixed bottom-6 right-6 z-40 bg-linear-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 text-white p-4 rounded-full shadow-2xl transition-all transform hover:scale-110 flex items-center gap-2 group focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#92F2FF] focus-visible:ring-offset-2 focus-visible:ring-offset-[#070A11]"
         aria-label="Test share popup"
         title="Preview Share Popup"
       >

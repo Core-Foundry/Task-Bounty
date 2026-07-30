@@ -10,6 +10,8 @@ Complete API reference for TaskBounty smart contracts.
 - [Events](#events)
 - [Errors](#errors)
 - [Data Structures](#data-structures)
+- [Query Helpers](#query-helpers)
+- [Task Metadata and Query Helpers](#task-metadata-and-query-helpers)
 
 ---
 
@@ -262,6 +264,78 @@ ITaskBounty.Task memory task = bounty.getTask(1);
 console.log(task.title);
 console.log(task.reward);
 ```
+
+---
+
+#### `getAllTasks`
+```solidity
+function getAllTasks()
+    external
+    view
+    returns (Task[] memory tasks)
+```
+
+Return every task in creation order.
+
+---
+
+#### `getTasksByStatus`
+```solidity
+function getTasksByStatus(TaskStatus status)
+    external
+    view
+    returns (Task[] memory tasks)
+```
+
+Return tasks that match the provided status.
+
+---
+
+#### `getTasksByReward`
+```solidity
+function getTasksByReward(uint256 reward)
+    external
+    view
+    returns (Task[] memory tasks)
+```
+
+Return tasks whose reward matches the provided amount.
+
+---
+
+#### `getTasksByMinReward`
+```solidity
+function getTasksByMinReward(uint256 minReward)
+    external
+    view
+    returns (Task[] memory tasks)
+```
+
+Return tasks whose reward is at least the provided amount.
+
+---
+
+#### `getTasksBeforeDeadline`
+```solidity
+function getTasksBeforeDeadline(uint256 deadline)
+    external
+    view
+    returns (Task[] memory tasks)
+```
+
+Return tasks whose deadline is on or before the cutoff.
+
+---
+
+#### `searchTasks`
+```solidity
+function searchTasks(string calldata query)
+    external
+    view
+    returns (Task[] memory tasks)
+```
+
+Return tasks whose title or description contains the query string.
 
 ---
 
@@ -855,6 +929,55 @@ bounty.raiseDispute(taskId, submissionId, "Work is complete");
 uint256 disputeId = resolver.getSubmissionDisputeId(taskId, submissionId);
 resolver.resolveDispute(disputeId, true);
 ```
+
+---
+
+## Query Helpers
+
+The contract exposes read-only helpers for surfacing tasks in a UI:
+
+- `getAllTasks()`
+- `getTasksByStatus(status)`
+- `getTasksByReward(reward)`
+- `getTasksByMinReward(minReward)`
+- `getTasksBeforeDeadline(deadline)`
+- `searchTasks(query)`
+## Task Metadata and Query Helpers
+
+### `updateTaskCategory`
+```solidity
+function updateTaskCategory(uint256 taskId, string calldata category) external
+```
+
+Update the category assigned to a task.
+
+### `addTaskTag`
+```solidity
+function addTaskTag(uint256 taskId, string calldata tag) external
+```
+
+Add a custom tag to a task.
+
+### `getAllTasks`
+```solidity
+function getAllTasks() external view returns (Task[] memory tasks)
+```
+
+Return every task in creation order.
+
+### `getTasksByCategory`
+```solidity
+function getTasksByCategory(string calldata category) external view returns (Task[] memory tasks)
+```
+
+Return tasks whose category matches the provided value.
+
+### `getTasksByTag`
+```solidity
+function getTasksByTag(string calldata tag) external view returns (Task[] memory tasks)
+```
+
+Return tasks that contain the provided tag.
 
 ---
 

@@ -4,12 +4,17 @@ use crate::base::events::{
     GroupActivated, GroupDeactivated, Withdrawal,
 };
 use crate::base::types::{AutoShareDetails, GroupMember, PaymentHistory};
+use crate::base::validation::{
+    validate_fee, validate_name, validate_usage_count, validate_withdraw_amount,
+};
 use soroban_sdk::{contracttype, token, Address, BytesN, Env, String, Vec};
 
 #[contracttype]
 pub enum DataKey {
     AutoShare(BytesN<32>),
     AllGroups,
+    /// Indexed group IDs owned by a creator — avoids full AllGroups scans for dashboard queries.
+    CreatorGroups(Address),
     Admin,
     SupportedTokens,
     UsageFee,
@@ -34,16 +39,15 @@ pub fn create_autoshare(
         return Err(Error::ContractPaused);
     }
 
+    // --- Input validation (Issue #45) ---
+    validate_name(&name)?;
+    validate_usage_count(usage_count)?;
+
     let key = DataKey::AutoShare(id.clone());
 
     // Check if it already exists to prevent overwriting
     if env.storage().persistent().has(&key) {
         return Err(Error::AlreadyExists);
-    }
-
-    // Validate usage count
-    if usage_count == 0 {
-        return Err(Error::InvalidUsageCount);
     }
 
     // Verify token is supported
@@ -81,6 +85,18 @@ pub fn create_autoshare(
         .unwrap_or(Vec::new(&env));
     all_groups.push_back(id.clone());
     env.storage().persistent().set(&all_groups_key, &all_groups);
+
+    // Maintain per-creator index for efficient dashboard lookups
+    let creator_groups_key = DataKey::CreatorGroups(creator.clone());
+    let mut creator_groups: Vec<BytesN<32>> = env
+        .storage()
+        .persistent()
+        .get(&creator_groups_key)
+        .unwrap_or(Vec::new(&env));
+    creator_groups.push_back(id.clone());
+    env.storage()
+        .persistent()
+        .set(&creator_groups_key, &creator_groups);
 
     // Initialize empty members list
     let members_key = DataKey::GroupMembers(id.clone());
@@ -127,12 +143,18 @@ pub fn get_all_groups(env: Env) -> Vec<AutoShareDetails> {
 }
 
 pub fn get_groups_by_creator(env: Env, creator: Address) -> Vec<AutoShareDetails> {
-    let all_groups = get_all_groups(env.clone());
-    let mut result: Vec<AutoShareDetails> = Vec::new(&env);
+    // Use the creator index instead of scanning every group (O(creator) vs O(all)).
+    let creator_groups_key = DataKey::CreatorGroups(creator);
+    let group_ids: Vec<BytesN<32>> = env
+        .storage()
+        .persistent()
+        .get(&creator_groups_key)
+        .unwrap_or(Vec::new(&env));
 
-    for group in all_groups.iter() {
-        if group.creator == creator {
-            result.push_back(group);
+    let mut result: Vec<AutoShareDetails> = Vec::new(&env);
+    for id in group_ids.iter() {
+        if let Ok(details) = get_autoshare(env.clone(), id) {
+            result.push_back(details);
         }
     }
     result
@@ -168,9 +190,12 @@ pub fn get_group_members(env: Env, id: BytesN<32>) -> Result<Vec<GroupMember>, E
 pub fn add_group_member(
     env: Env,
     id: BytesN<32>,
+    caller: Address,
     address: Address,
     percentage: u32,
 ) -> Result<(), Error> {
+    caller.require_auth();
+
     // Check if contract is paused
     if get_paused_status(&env) {
         return Err(Error::ContractPaused);
@@ -182,6 +207,11 @@ pub fn add_group_member(
         .persistent()
         .get(&key)
         .ok_or(Error::NotFound)?;
+
+    // Only the group creator may modify membership
+    if details.creator != caller {
+        return Err(Error::Unauthorized);
+    }
 
     // Check if already a member
     for member in details.members.iter() {
@@ -201,6 +231,13 @@ pub fn add_group_member(
 
     // Save updated details
     env.storage().persistent().set(&key, &details);
+
+    // Keep GroupMembers index in sync with details.members
+    let members_key = DataKey::GroupMembers(id);
+    env.storage()
+        .persistent()
+        .set(&members_key, &details.members);
+
     Ok(())
 }
 
@@ -385,9 +422,9 @@ pub fn is_token_supported(env: Env, token: Address) -> bool {
 pub fn set_usage_fee(env: Env, fee: u32, admin: Address) -> Result<(), Error> {
     admin.require_auth();
     require_admin(&env, &admin)?;
-    if fee == 0 {
-        return Err(Error::InvalidAmount);
-    }
+
+    // --- Input validation (Issue #45) ---
+    validate_fee(fee)?;
 
     let fee_key = DataKey::UsageFee;
     env.storage().persistent().set(&fee_key, &fee);
@@ -417,10 +454,8 @@ pub fn topup_subscription(
         return Err(Error::ContractPaused);
     }
 
-    // Validate usage count
-    if additional_usages == 0 {
-        return Err(Error::InvalidUsageCount);
-    }
+    // --- Input validation (Issue #45) ---
+    validate_usage_count(additional_usages)?;
 
     // Verify group exists
     let key = DataKey::AutoShare(id.clone());
@@ -542,13 +577,20 @@ pub fn get_total_usages_paid(env: Env, id: BytesN<32>) -> Result<u32, Error> {
     Ok(details.total_usages_paid)
 }
 
-pub fn reduce_usage(env: Env, id: BytesN<32>) -> Result<(), Error> {
+pub fn reduce_usage(env: Env, id: BytesN<32>, caller: Address) -> Result<(), Error> {
+    caller.require_auth();
+
     let key = DataKey::AutoShare(id);
     let mut details: AutoShareDetails = env
         .storage()
         .persistent()
         .get(&key)
         .ok_or(Error::NotFound)?;
+
+    // Only the group creator may consume usages for their group
+    if details.creator != caller {
+        return Err(Error::Unauthorized);
+    }
 
     if details.usage_count == 0 {
         return Err(Error::NoUsagesRemaining);
@@ -590,7 +632,9 @@ pub fn update_members(
         return Err(Error::GroupInactive);
     }
 
-    // Validate new members
+    // --- Input validation (Issue #45) ---
+    // Validate new members: non-empty, no duplicates, percentages sum to 100,
+    // each percentage in [1, 100], count ≤ MAX_MEMBERS.
     if new_members.is_empty() {
         return Err(Error::EmptyMembers);
     }
@@ -599,6 +643,9 @@ pub fn update_members(
     let mut seen_addresses = Vec::new(&env);
 
     for member in new_members.iter() {
+        if member.percentage == 0 || member.percentage > 100 {
+            return Err(Error::InvalidInput);
+        }
         total_percentage += member.percentage;
 
         for seen in seen_addresses.iter() {
@@ -720,9 +767,8 @@ pub fn withdraw(
     admin.require_auth();
     require_admin(&env, &admin)?;
 
-    if amount <= 0 {
-        return Err(Error::InvalidAmount);
-    }
+    // --- Input validation (Issue #45) ---
+    validate_withdraw_amount(amount)?;
 
     let contract_balance = get_contract_balance(env.clone(), token.clone());
     if contract_balance < amount {

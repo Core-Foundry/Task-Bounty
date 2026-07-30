@@ -103,11 +103,19 @@ export default function WaitlistHeroSection({ onEmailSubmit }: Props) {
             Paymesh
           </span>
         </div>
-        <form onSubmit={submit} className="w-full max-w-[500px]">
+        <form onSubmit={submit} className="w-full max-w-[500px]" aria-label="Waitlist signup">
+          {/* Visually hidden label — the placeholder alone is not sufficient for screen readers */}
+          <label
+            htmlFor="waitlist-email"
+            className="sr-only"
+          >
+            Email address
+          </label>
           <div
             className={`flex flex-col sm:flex-row gap-3 items-stretch sm:items-center bg-white/5 ${btnCls} p-3 sm:p-0 sm:pr-3`}
           >
             <input
+              id="waitlist-email"
               type="email"
               value={email}
               onChange={(e) => {
@@ -117,37 +125,40 @@ export default function WaitlistHeroSection({ onEmailSubmit }: Props) {
               }}
               placeholder="Enter email address"
               className="flex-1 bg-transparent px-4 sm:px-6 py-3 sm:py-4 text-white placeholder:text-[#8398AD] outline-none text-base"
-              aria-label="Email address"
+              aria-required="true"
               aria-invalid={status === "error" ? "true" : "false"}
+              aria-describedby="waitlist-email-message"
               disabled={loading}
             />
             <button
               type="submit"
               disabled={loading}
               className={`px-6 py-2.5 bg-white/10 ${btnCls} text-[#E2E2E2] text-sm disabled:opacity-50 disabled:cursor-not-allowed`}
-              aria-label="Join waitlist"
             >
               {loading ? "Joining..." : "Join"}
             </button>
           </div>
-          {status === "error" && (
-            <p
-              className="mt-2 text-red-400 text-sm"
-              role="alert"
-              aria-live="polite"
-            >
-              {err}
-            </p>
-          )}
-          {status === "success" && (
-            <p
-              className="mt-2 text-green-400 text-sm"
-              role="alert"
-              aria-live="polite"
-            >
-              Thanks for joining! Check your email.
-            </p>
-          )}
+          {/*
+            Persistent live region: always in the DOM so the browser registers the
+            aria-live contract on mount. Content is set when status changes so the
+            announcement fires. role="alert" on a conditionally-rendered element can
+            be missed by some screen readers; aria-live="assertive" on a persistent
+            container is more reliable.
+          */}
+          <p
+            id="waitlist-email-message"
+            aria-live="assertive"
+            aria-atomic="true"
+            className={`mt-2 text-sm ${
+              status === "error"
+                ? "text-red-400"
+                : status === "success"
+                  ? "text-green-400"
+                  : "sr-only"
+            }`}
+          >
+            {status === "error" ? err : status === "success" ? "Thanks for joining! Check your email." : ""}
+          </p>
         </form>
       </main>
       <nav className={`${navCls} justify-center gap-6 bg-[#0A1223]`}>

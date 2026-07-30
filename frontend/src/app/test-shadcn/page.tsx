@@ -1,12 +1,12 @@
 "use client"
 
-import { Button } from "@/src/components/ui"
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/src/components/ui"
-import { Input } from "@/src/components/ui"
-import { Badge } from "@/src/components/ui"
-import { Skeleton } from "@/src/components/ui"
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/src/components/ui"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/src/components/ui"
+import { Button } from "@/components/ui"
+import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui"
+import { Input } from "@/components/ui"
+import { Badge } from "@/components/ui"
+import { Skeleton } from "@/components/ui"
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui"
 
 export default function TestComponents() {
   return (

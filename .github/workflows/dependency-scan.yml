@@ -1,0 +1,150 @@
+name: Dependency Vulnerability Scan
+
+on:
+  pull_request:
+    branches:
+      - main
+  push:
+    branches:
+      - main
+  schedule:
+    # Weekly scan so maintainers are notified of newly published advisories
+    - cron: "0 8 * * 1"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  frontend-dependency-scan:
+    name: Frontend Dependency Scan
+    runs-on: ubuntu-latest
+
+    defaults:
+      run:
+        working-directory: frontend
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Set up pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          # Pin to packageManager in frontend/package.json; pnpm 11+ needs Node ≥22
+          version: "10.26.1"
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Run pnpm audit and generate reports
+        id: frontend_audit
+        run: |
+          mkdir -p ../reports/dependency-scan
+          set +e
+          pnpm audit --json > ../reports/dependency-scan/frontend-pnpm-audit.json 2> ../reports/dependency-scan/frontend-pnpm-audit.stderr.txt
+          pnpm audit > ../reports/dependency-scan/frontend-pnpm-audit.txt 2>&1
+          AUDIT_EXIT=$?
+          set -e
+
+          {
+            echo "## Frontend dependency vulnerability scan"
+            echo ""
+            echo "- Scanner: \`pnpm audit\`"
+            echo "- Exit code: \`${AUDIT_EXIT}\`"
+            echo "- Reports: \`frontend-pnpm-audit.json\`, \`frontend-pnpm-audit.txt\`"
+            echo ""
+            if [ "${AUDIT_EXIT}" -ne 0 ]; then
+              echo "> Vulnerabilities were reported. Review the uploaded artifacts and Dependabot PRs."
+            else
+              echo "> No vulnerabilities reported by \`pnpm audit\`."
+            fi
+            echo ""
+            echo "### Summary (tail)"
+            echo ""
+            echo '```'
+            tail -n 40 ../reports/dependency-scan/frontend-pnpm-audit.txt || true
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+
+          # Scanner must produce reports; advisory findings do not fail the job.
+          test -s ../reports/dependency-scan/frontend-pnpm-audit.txt
+          test -s ../reports/dependency-scan/frontend-pnpm-audit.json
+
+      - name: Upload frontend dependency scan reports
+        uses: actions/upload-artifact@v4
+        with:
+          name: frontend-dependency-scan-reports
+          path: reports/dependency-scan/frontend-*
+          if-no-files-found: error
+          retention-days: 30
+
+  contract-dependency-scan:
+    name: Contract Dependency Scan
+    runs-on: ubuntu-latest
+
+    defaults:
+      run:
+        working-directory: contract
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Install Rust
+        uses: actions-rs/toolchain@v1
+        with:
+          toolchain: stable
+          override: true
+
+      - name: Install cargo-audit
+        uses: taiki-e/install-action@v2
+        with:
+          tool: cargo-audit
+
+      - name: Run cargo audit and generate reports
+        id: contract_audit
+        run: |
+          mkdir -p ../reports/dependency-scan
+          set +e
+          cargo audit --json > ../reports/dependency-scan/contract-cargo-audit.json 2> ../reports/dependency-scan/contract-cargo-audit.stderr.txt
+          cargo audit > ../reports/dependency-scan/contract-cargo-audit.txt 2>&1
+          AUDIT_EXIT=$?
+          set -e
+
+          {
+            echo "## Contract dependency vulnerability scan"
+            echo ""
+            echo "- Scanner: \`cargo audit\`"
+            echo "- Exit code: \`${AUDIT_EXIT}\`"
+            echo "- Reports: \`contract-cargo-audit.json\`, \`contract-cargo-audit.txt\`"
+            echo ""
+            if [ "${AUDIT_EXIT}" -ne 0 ]; then
+              echo "> Vulnerabilities or warnings were reported. Review the uploaded artifacts and Dependabot PRs."
+            else
+              echo "> No vulnerabilities reported by \`cargo audit\`."
+            fi
+            echo ""
+            echo "### Summary"
+            echo ""
+            echo '```'
+            cat ../reports/dependency-scan/contract-cargo-audit.txt || true
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+
+          # Scanner must produce reports; advisory findings do not fail the job.
+          test -s ../reports/dependency-scan/contract-cargo-audit.txt
+          test -s ../reports/dependency-scan/contract-cargo-audit.json
+
+      - name: Upload contract dependency scan reports
+        uses: actions/upload-artifact@v4
+        with:
+          name: contract-dependency-scan-reports
+          path: reports/dependency-scan/contract-*
+          if-no-files-found: error
+          retention-days: 30

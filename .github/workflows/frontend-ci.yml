@@ -53,12 +53,14 @@ jobs:
 
       # -----------------------------------
       # Set up pnpm (if using pnpm)
+      # Pin to packageManager in frontend/package.json — "latest" (pnpm 11+)
+      # requires Node >= 22.13 and crashes on Node 20 (node:sqlite).
       # -----------------------------------
       - name: Set up pnpm
         if: steps.pm.outputs.manager == 'pnpm'
-        uses: pnpm/action-setup@v2
+        uses: pnpm/action-setup@v4
         with:
-          version: latest
+          version: 10.26.1
 
       # -----------------------------------
       # Cache dependencies
@@ -87,10 +89,12 @@ jobs:
           fi
 
       # -----------------------------------
-      # Format check (ESLint)
+      # Lint check (ESLint) — refs #84
+      # No continue-on-error: lint failures must fail the job directly so
+      # branch protection can block merges on lint errors.
+      # No --fix flag: this workflow only reports, never auto-commits.
       # -----------------------------------
-      - name: Format check
-        id: lint
+      - name: Lint
         run: |
           if [ "${{ steps.pm.outputs.manager }}" = "pnpm" ]; then
             pnpm lint
@@ -99,13 +103,24 @@ jobs:
           else
             npm run lint
           fi
-        continue-on-error: true
+
+      # -----------------------------------
+      # Unit and E2E tests
+      # -----------------------------------
+      - name: Run frontend tests
+        run: |
+          if [ "${{ steps.pm.outputs.manager }}" = "pnpm" ]; then
+            pnpm test
+          elif [ "${{ steps.pm.outputs.manager }}" = "yarn" ]; then
+            yarn test
+          else
+            npm test
+          fi
 
       # -----------------------------------
       # Build check
       # -----------------------------------
       - name: Build frontend
-        id: build
         run: |
           if [ "${{ steps.pm.outputs.manager }}" = "pnpm" ]; then
             pnpm build
@@ -114,15 +129,3 @@ jobs:
           else
             npm run build
           fi
-
-      # -----------------------------------
-      # Report build status
-      # -----------------------------------
-      - name: Report status
-        if: steps.lint.outcome == 'failure' || steps.build.outcome == 'failure'
-        run: |
-          echo "❌ CI checks failed!"
-          echo "Please ensure:"
-          echo "  - Code builds successfully (npm run build)"
-          echo "  - Code formatting is correct (npm run lint)"
-          exit 1

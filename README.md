@@ -22,24 +22,138 @@ Soroban: Modern Rust-based smart contracts with WebAssembly
 Scalability: Thousands of transactions per second
 Developer Friendly: Excellent tooling and documentation
 🏗️ Architecture
-Core Contracts
-task-bounty/
-├── contracts/
-│   ├── task_bounty/          # Main bounty management
-│   │   ├── src/
-│   │   │   ├── lib.rs        # Contract entry points
-│   │   │   ├── types.rs      # Data structures
-│   │   │   ├── storage.rs    # Storage helpers
-│   │   │   ├── task.rs       # Task management
-│   │   │   ├── submission.rs # Submission handling
-│   │   │   └── events.rs     # Event definitions
-│   │   └── Cargo.toml
-│   └── dispute_resolver/     # Dispute handling
-│       ├── src/
-│       │   ├── lib.rs
-│       │   └── types.rs
-│       └── Cargo.toml
-└── Cargo.toml
+
+### System Overview
+
+```
+┌─────────────────────────────────────────────────────────────────────┐
+│                         Frontend (Next.js)                          │
+│   Task Board  │  Create Task  │  Submit Work  │  Wallet Connect     │
+└──────────────────────────┬──────────────────────────────────────────┘
+                           │  Stellar Wallets Kit (RPC calls)
+                           ▼
+┌─────────────────────────────────────────────────────────────────────┐
+│                    Stellar Network (Soroban RPC)                    │
+└──────────┬──────────────────────────────────┬───────────────────────┘
+           │                                  │
+           ▼                                  ▼
+┌──────────────────────┐          ┌───────────────────────┐
+│   TaskBounty         │  calls   │   DisputeResolver     │
+│   Contract           │ ───────► │   Contract            │
+│                      │          │                       │
+│  • create_task       │          │  • raise_dispute      │
+│  • submit_work       │          │  • resolve_dispute    │
+│  • approve_submission│          │  • manage_arbitrators │
+│  • reject_submission │          └───────────────────────┘
+│  • cancel_task       │
+│  • get_task          │
+│  • get_submission    │
+└──────────────────────┘
+           │
+           │  token transfers via SAC interface
+           ▼
+┌──────────────────────┐
+│  Token Contract      │
+│  (XLM / SAC token)   │
+│  Escrowed rewards    │
+└──────────────────────┘
+```
+
+### Task Lifecycle
+
+```
+                        ┌─────────┐
+                        │  OPEN   │ ◄── create_task() — reward escrowed
+                        └────┬────┘
+                             │ submit_work()
+                             ▼
+                      ┌────────────┐
+                      │ IN PROGRESS│
+                      └─────┬──────┘
+              ┌─────────────┤
+              │             │
+              ▼             ▼
+        ┌──────────┐  ┌──────────┐
+        │ APPROVED │  │ REJECTED │
+        │ (payout) │  │ (re-open)│
+        └──────────┘  └──────────┘
+              │
+              │ raise_dispute()
+              ▼
+        ┌──────────┐
+        │ DISPUTED │ ──► DisputeResolver ──► COMPLETED or refund
+        └──────────┘
+
+       poster cancels anytime before approval
+              │
+              ▼
+        ┌──────────┐
+        │CANCELLED │ (reward refunded to poster)
+        └──────────┘
+```
+
+### Task Creation & Payout Flow
+
+```
+Poster                  Contract              Token (SAC)
+  │                        │                      │
+  │── create_task() ──────►│                      │
+  │                        │── transfer_from() ──►│  escrow reward
+  │◄── task_id ────────────│                      │
+  │                        │                      │
+Contributor               │                      │
+  │── submit_work() ──────►│                      │
+  │◄── submission_id ──────│                      │
+  │                        │                      │
+Poster                    │                      │
+  │── approve_submission()►│                      │
+  │                        │── transfer() ───────►│  pay contributor
+  │                        │   emit Approved      │
+  │◄── tx confirmed ───────│                      │
+```
+
+### Dispute Resolution Flow
+
+```
+Contributor           TaskBounty           DisputeResolver      Arbitrator
+     │                    │                      │                   │
+     │── raise_dispute() ►│                      │                   │
+     │                    │── forward dispute ──►│                   │
+     │                    │                      │◄── resolve() ─────│
+     │                    │                      │    (true/false)   │
+     │                    │◄── resolution ────────│                   │
+     │                    │                      │                   │
+     │                    │  if true: pay contrib │                   │
+     │                    │  if false: refund poster                  │
+```
+
+### Repository Structure
+
+```
+Task-Bounty/
+├── contract/
+│   └── contracts/
+│       └── hello-world/        # Soroban contract
+│           └── src/
+│               ├── lib.rs      # Contract entry points & public API
+│               ├── types.rs    # Task, Submission, Dispute, Error types
+│               ├── storage.rs  # Storage key helpers
+│               ├── task.rs     # Task creation & cancellation
+│               ├── submission.rs  # Submit, approve, reject
+│               ├── dispute.rs  # Dispute handling
+│               └── events.rs   # Event emission helpers
+├── frontend/                   # Next.js frontend
+│   └── src/
+│       ├── app/                # Next.js app router pages
+│       ├── components/         # Shared UI components
+│       ├── hooks/              # Stellar wallet integration
+│       └── lib/                # Stellar RPC utilities
+├── CONTRIBUTING.md
+├── SETUP.md
+├── TROUBLESHOOTING.md
+├── CONTRACT_API.md
+└── README.md
+```
 Key Features
 Task Posting: Create tasks with escrowed rewards (XLM or any Stellar token)
 Work Submission: Contributors submit IPFS/Arweave links to their work
@@ -196,6 +310,7 @@ Deadline Enforcement: Timestamp-based validations
 Input Validation: Comprehensive checks on all parameters
 Atomic Operations: Stellar's transaction atomicity guarantees
 No Reentrancy: Soroban's execution model prevents reentrancy attacks
+HTTP Security Headers: The Next.js frontend applies CSP, HSTS, and related headers on all responses — see SECURITY_HEADERS.md
 📊 Gas Optimization (Fee Efficiency)
 Stellar advantages:
 
@@ -249,3 +364,44 @@ GitHub: [Your GitHub]
 Discord: Stellar Discord
 Twitter: [Your Twitter]
 Built with ❤️ on Stellar
+
+## ♿ Form Accessibility
+
+> Issue reference: [#83 — Improve Form Accessibility](https://github.com/MAN7A-afk/Task-Bounty/issues/83)
+
+### Forms reviewed
+
+| Form / Component | Location |
+|-----------------|----------|
+| Waitlist signup | `frontend/src/app/(marketing)/landing/components/WaitlistHeroSection.tsx` |
+| Task filter | `frontend/src/components/TaskFilter.tsx` |
+| Component demo inputs | `frontend/src/app/test-components/page.tsx` |
+| Mobile nav button | `frontend/src/components/Navbar.tsx` |
+
+### Pattern used
+
+**Label association** — every `<input>`, `<select>` (via `SelectTrigger`), and custom `Input` component has a matching `<label htmlFor={id}>` / `id=` pair. Visually-hidden labels use `sr-only` where a visible label would break the design (e.g. the waitlist email field uses a `sr-only` `<label>` alongside a visible placeholder).
+
+**`aria-required`** — required fields (waitlist email) carry `aria-required="true"`.
+
+**`aria-invalid` + `aria-describedby`** — on validation error, `aria-invalid="true"` is set on the offending input and `aria-describedby` points to the `id` of the error message element so screen readers announce the message when focus returns to the field.
+
+**Live regions** — error/success messages use a persistent `aria-live="assertive"` container (always in the DOM) rather than conditionally rendered `role="alert"` elements. This avoids the reliability issue where some screen readers miss announcements from elements that are added to the DOM after page load.
+
+**`aria-expanded` / `aria-controls`** — the mobile navigation toggle already used these correctly; a duplicate-props bug (two `className` and two sets of `aria-*` attributes on the same element) was fixed so only the correct values take effect.
+
+### How to adjust error message announcements
+
+All live-region wiring lives directly in each form component. To change the politeness level:
+
+- `aria-live="assertive"` — interrupts the screen reader immediately (used for form errors)
+- `aria-live="polite"` — waits for the current speech to finish (appropriate for success confirmations)
+
+Change the attribute value in the relevant component file. Do not add `role="alert"` to empty containers that are always present in the DOM — only use it on elements that are conditionally rendered.
+
+### Tests
+
+| Test file | What it covers |
+|-----------|---------------|
+| `frontend/src/app/(marketing)/landing/components/WaitlistHeroSection.test.tsx` | label/id pairing, `aria-required`, `aria-describedby`, persistent live region, initial `aria-invalid` state |
+| `frontend/src/components/TaskFilter.test.tsx` | all 6 `for=` → `id=` associations for inputs and selects |

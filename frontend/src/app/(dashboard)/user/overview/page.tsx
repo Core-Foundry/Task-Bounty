@@ -2,6 +2,7 @@
 
 import React from "react";
 import ActiveGroupsWidget from "./components/ActiveGroupsWidget";
+import ContributorProfileCard from "./components/ContributorProfileCard";
 import { motion } from "framer-motion";
 import { LayoutDashboard } from "lucide-react";
 
@@ -30,6 +31,7 @@ export default function OverviewPage() {
 
       {/* Widgets Grid */}
       <div className="grid grid-cols-1 lg:grid-cols-1 gap-6 sm:gap-8">
+        <ContributorProfileCard />
         <ActiveGroupsWidget />
       </div>
     </div>

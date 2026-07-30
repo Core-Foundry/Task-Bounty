@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Menu, X } from "lucide-react";
 import ConnectWalletButton from "./ConnectWalletButton";
 import Image from "next/image";
@@ -10,11 +10,29 @@ const NAV_ITEMS = [
   { name: "Groups", href: "/groups" },
   { name: "Fundraising", href: "/fundraising" },
   { name: "Transactions", href: "/user/transactions" },
+  { name: "Completed Tasks", href: "/completed-tasks" },
   { name: "Profile Analytics", href: "#" },
 ];
 
 export function Navbar() {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+
+  // Close menu when window is resized to desktop
+  useEffect(() => {
+    const handleResize = () => {
+      if (window.innerWidth >= 768) {
+        setIsMobileMenuOpen(false);
+      }
+    };
+
+    window.addEventListener("resize", handleResize);
+    return () => window.removeEventListener("resize", handleResize);
+  }, []);
+
+  // Close menu when a nav item is clicked
+  const handleNavItemClick = () => {
+    setIsMobileMenuOpen(false);
+  };
 
   return (
     <nav className="fixed top-0 left-0 right-0 z-40 backdrop-blur-lg border-b border-white/5 flex items-center justify-between py-[14px] lg:py-5 px-3 lg:px-[100px]">
@@ -51,16 +69,49 @@ export function Navbar() {
       </div>
 
       {/* Connect Button (Desktop) */}
-      <ConnectWalletButton />
+      <div className="hidden md:block">
+        <ConnectWalletButton />
+      </div>
 
       {/* Mobile menu button */}
-      <div className="flex md:hidden">
+      <div className="flex md:hidden items-center gap-3">
+        <ConnectWalletButton />
         <button
+          type="button"
+          aria-expanded={isMobileMenuOpen}
+          aria-controls="mobile-menu"
           onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
-          className="inline-flex items-center justify-center p-3 rounded-full text-[#E2E2E2] bg-[#101011] focus:outline-none"
+          className="inline-flex items-center justify-center p-3 rounded-full text-[#E2E2E2] bg-[#101011] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#92F2FF] focus-visible:ring-offset-2 focus-visible:ring-offset-[#070A11]"
         >
           {isMobileMenuOpen ? <X size={24} /> : <Menu size={24} />}
         </button>
+      </div>
+
+      {/* Mobile Menu */}
+      <div
+        id="mobile-navigation-menu"
+        className={`absolute top-full left-0 right-0 mt-2 mx-3 p-4 bg-[#0D0D10] border border-[#232542] rounded-2xl shadow-xl z-50 transition-all duration-300 ease-in-out ${
+          isMobileMenuOpen
+            ? "opacity-100 translate-y-0 pointer-events-auto"
+            : "opacity-0 -translate-y-2 pointer-events-none"
+        }`}
+      >
+        <div className="flex flex-col gap-2">
+          {NAV_ITEMS.map((item) => (
+            <a
+              key={item.name}
+              href={item.href}
+              onClick={handleNavItemClick}
+              className={`px-4 py-3 rounded-xl text-[#dddddd] text-sm font-bold tracking-wide transition-colors ${
+                item.name === "Overview"
+                  ? "bg-[#5B63D6] text-white"
+                  : "hover:bg-[#5B63D6]/20"
+              }`}
+            >
+              {item.name}
+            </a>
+          ))}
+        </div>
       </div>
     </nav>
   );

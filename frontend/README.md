@@ -1,5 +1,39 @@
 This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
 
+## HTTP security headers
+
+Production responses include recommended security headers (CSP, HSTS, `X-Frame-Options`, and others). Configuration lives in [`security-headers.mjs`](./security-headers.mjs) and is wired through [`next.config.ts`](./next.config.ts).
+
+```bash
+pnpm test:security-headers
+# full build + live curl check from repo root:
+../scripts/test-security-headers.sh
+```
+
+See [`../SECURITY_HEADERS.md`](../SECURITY_HEADERS.md) for the full list and CSP compatibility notes.
+
+## API rate limiting
+
+Public API endpoints now support configurable request throttling for abuse protection. The rate limiter is disabled by default and can be enabled with environment variables:
+
+```bash
+API_RATE_LIMIT_ENABLED=true
+API_RATE_LIMIT_MAX_REQUESTS=60
+API_RATE_LIMIT_WINDOW_MS=60000
+```
+
+When enabled, requests exceeding the limit receive a `429 Too Many Requests` response with `Retry-After`, `X-Rate-Limit-Limit`, and `X-Rate-Limit-Remaining` headers. The limiter uses the client IP from the forwarded headers when available, so deployments behind proxies can be protected correctly.
+
+## Task submission file validation
+
+The frontend now exposes a server-side validation endpoint for uploaded task submission files:
+
+```
+POST /api/task-submissions/validate
+```
+
+Accepted uploads are restricted to a small allow-list of safe formats (`.pdf`, `.zip`, `.png`, `.jpg`, `.jpeg`, `.webp`, `.txt`, `.md`, `.json`). Validation checks file count, individual file size, combined payload size, suspicious filenames, declared MIME type, and the file signature/content where possible before accepting the upload.
+
 ## Getting Started
 
 First, run the development server:
@@ -19,6 +53,50 @@ Open [http://localhost:3000](http://localhost:3000) with your browser to see the
 You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
 
 This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+
+## Health Check
+
+The app exposes a health check endpoint for monitoring application status and service availability:
+
+```
+GET /api/health
+```
+
+Example response (`200 OK`, `Cache-Control: no-store`):
+
+```json
+{
+  "status": "ok",
+  "service": "taskbounty-frontend",
+  "timestamp": "2026-07-16T21:00:00.000Z",
+  "uptime": 42,
+  "environment": "production"
+}
+```
+
+| Field | Description |
+| --- | --- |
+| `status` | `"ok"` when the app is able to serve requests |
+| `service` | Service identifier (`taskbounty-frontend`) |
+| `timestamp` | ISO-8601 time the report was generated |
+| `uptime` | Seconds the Node.js process has been running |
+| `environment` | Runtime environment (`development`, `production`, `test`) |
+
+The endpoint is always server-rendered (never cached), so it reflects the live process. It can be wired into load balancers, uptime monitors, or container orchestration probes.
+
+## Environment variables
+
+Copy [`.env.example`](./.env.example) to `.env.local` for optional public overrides (network, Horizon URL, contract ID).
+
+**Never commit secrets.** See [`../ENVIRONMENT.md`](../ENVIRONMENT.md) for the full policy. Only `NEXT_PUBLIC_*` values are available in the browser — do not put private keys or API tokens there.
+
+## Running Tests
+
+Unit tests are written with [Vitest](https://vitest.dev):
+
+```bash
+pnpm test
+```
 
 ## Learn More
 

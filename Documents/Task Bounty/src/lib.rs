@@ -1,5 +1,4 @@
 #![no_std]
-
 //! # TaskBounty - Decentralized Task & Reward Board
 //!
 //! A Soroban smart contract for trustless task management and bounty payments on Stellar.
@@ -11,10 +10,12 @@
 //! - Automatic payouts
 //! - Dispute resolution
 //! - Multi-token support (XLM and SAC tokens)
+extern crate alloc;
 
 mod types;
 mod storage;
 mod task;
+mod query;
 mod submission;
 mod dispute;
 mod events;
@@ -23,7 +24,7 @@ mod events;
 mod test;
 
 use soroban_sdk::{contract, contractimpl, Address, Env, String, Vec};
-use types::{Task, Submission, TaskStatus, SubmissionStatus};
+use types::{Task, Submission, TaskStatus};
 
 #[contract]
 pub struct TaskBountyContract;
@@ -77,6 +78,20 @@ impl TaskBountyContract {
             deadline,
             max_submissions,
         )
+    }
+
+    /// Update the category for an existing task.
+    pub fn update_task_category(env: Env, task_id: u64, poster: Address, category: String) {
+        poster.require_auth();
+
+        task::update_task_category(&env, task_id, poster, category);
+    }
+
+    /// Add a custom tag to an existing task.
+    pub fn add_task_tag(env: Env, task_id: u64, poster: Address, tag: String) {
+        poster.require_auth();
+
+        task::add_task_tag(&env, task_id, poster, tag);
     }
 
     /// Submit work for a task
@@ -176,6 +191,46 @@ impl TaskBountyContract {
     /// Task struct
     pub fn get_task(env: Env, task_id: u64) -> Task {
         storage::get_task(&env, task_id)
+    }
+
+    /// Get every task in creation order.
+    pub fn get_all_tasks(env: Env) -> Vec<Task> {
+        query::get_all_tasks(&env)
+    }
+
+    /// Filter tasks by status.
+    pub fn get_tasks_by_status(env: Env, status: TaskStatus) -> Vec<Task> {
+        query::get_tasks_by_status(&env, status)
+    }
+
+    /// Filter tasks by exact reward amount.
+    pub fn get_tasks_by_reward(env: Env, reward: i128) -> Vec<Task> {
+        query::get_tasks_by_reward(&env, reward)
+    }
+
+    /// Filter tasks by minimum reward amount.
+    pub fn get_tasks_by_min_reward(env: Env, min_reward: i128) -> Vec<Task> {
+        query::get_tasks_by_min_reward(&env, min_reward)
+    }
+
+    /// Filter tasks whose deadline is on or before the provided cutoff.
+    pub fn get_tasks_before_deadline(env: Env, deadline: u64) -> Vec<Task> {
+        query::get_tasks_before_deadline(&env, deadline)
+    }
+
+    /// Search task titles and descriptions for a query string.
+    pub fn search_tasks(env: Env, query_str: String) -> Vec<Task> {
+        query::search_tasks(&env, query_str)
+    }
+
+    /// Filter tasks by category.
+    pub fn get_tasks_by_category(env: Env, category: String) -> Vec<Task> {
+        query::get_tasks_by_category(&env, category)
+    }
+
+    /// Filter tasks by custom tag.
+    pub fn get_tasks_by_tag(env: Env, tag: String) -> Vec<Task> {
+        query::get_tasks_by_tag(&env, tag)
     }
 
     /// Get submission details

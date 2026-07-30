@@ -1,0 +1,16 @@
+# Generated dependency vulnerability scan reports (local + CI artifacts)
+reports/
+
+# Environment / secrets — never commit real credentials
+.env
+.env.*
+!.env.example
+**/.env
+**/.env.*
+!**/.env.example
+
+# Common secret material
+*.pem
+*.key
+id_rsa
+id_ed25519

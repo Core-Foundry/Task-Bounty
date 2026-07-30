@@ -56,44 +56,59 @@ export default function FaqSection() {
         </motion.div>
 
         <div className="lg:w-2/3 space-y-4">
-          {faqData.map((item, index) => (
-            <motion.div
-              key={index}
-              className="border-b border-[#FFFFFF1A] last:border-0 pb-4 last:pb-0 cursor-pointer"
-              onClick={() => toggle(index)}
-              initial={{ opacity: 0, y: 20 }}
-              whileInView={{ opacity: 1, y: 0 }}
-              viewport={{ once: true }}
-              transition={{ delay: index * 0.1, duration: 0.5 }}
-            >
-              <div className="flex items-center justify-between py-2">
-                <h3 className="text-[#FFFFFF] font-semibold text-base md:text-base">
-                  {item.question}
-                </h3>
-                <motion.div
-                  animate={{ rotate: openIndex === index ? 90 : 0 }}
-                  transition={{ duration: 0.3 }}
+          {faqData.map((item, index) => {
+            const isOpen = openIndex === index;
+
+            return (
+              <motion.div
+                key={index}
+                className="border-b border-[#FFFFFF1A] last:border-0 pb-4 last:pb-0"
+                initial={{ opacity: 0, y: 20 }}
+                whileInView={{ opacity: 1, y: 0 }}
+                viewport={{ once: true }}
+                transition={{ delay: index * 0.1, duration: 0.5 }}
+              >
+                <button
+                  id={`faq-question-${index}`}
+                  type="button"
+                  aria-expanded={isOpen}
+                  aria-controls={`faq-answer-${index}`}
+                  onClick={() => toggle(index)}
+                  className="w-full cursor-pointer text-left rounded-lg focus:outline-none focus-visible:ring-2 focus-visible:ring-[#92F2FF] focus-visible:ring-offset-2 focus-visible:ring-offset-[#24225A]"
                 >
-                  <Plus size={16} className="text-[#FFFFFF]" />
-                </motion.div>
-              </div>
-              <AnimatePresence>
-                {openIndex === index && (
-                  <motion.div
-                    initial={{ height: 0, opacity: 0, marginTop: 0 }}
-                    animate={{ height: "auto", opacity: 1, marginTop: 8 }}
-                    exit={{ height: 0, opacity: 0, marginTop: 0 }}
-                    transition={{ duration: 0.3 }}
-                    className="overflow-hidden"
-                  >
-                    <p className="text-[#8398AD] text-sm leading-relaxed">
-                      {item.answer}
-                    </p>
-                  </motion.div>
-                )}
-              </AnimatePresence>
-            </motion.div>
-          ))}
+                  <div className="flex items-center justify-between py-2">
+                    <h3 className="text-[#FFFFFF] font-semibold text-base md:text-base">
+                      {item.question}
+                    </h3>
+                    <motion.div
+                      animate={{ rotate: isOpen ? 90 : 0 }}
+                      transition={{ duration: 0.3 }}
+                    >
+                      <Plus size={16} className="text-[#FFFFFF]" />
+                    </motion.div>
+                  </div>
+                </button>
+                <AnimatePresence>
+                  {isOpen && (
+                    <motion.div
+                      id={`faq-answer-${index}`}
+                      role="region"
+                      aria-labelledby={`faq-question-${index}`}
+                      initial={{ height: 0, opacity: 0, marginTop: 0 }}
+                      animate={{ height: "auto", opacity: 1, marginTop: 8 }}
+                      exit={{ height: 0, opacity: 0, marginTop: 0 }}
+                      transition={{ duration: 0.3 }}
+                      className="overflow-hidden"
+                    >
+                      <p className="text-[#8398AD] text-sm leading-relaxed">
+                        {item.answer}
+                      </p>
+                    </motion.div>
+                  )}
+                </AnimatePresence>
+              </motion.div>
+            );
+          })}
         </div>
       </div>
       <motion.div
