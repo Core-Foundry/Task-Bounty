@@ -1,3 +1,4 @@
+import type { ContributorReputation } from "@/types/reputation";
 import type {
   AddCommentInput,
   CommentRecord,
@@ -385,6 +386,9 @@ export function approveSubmission(
   const updatedTask: TaskRecord = { ...task, status: "completed" };
   tasks.set(taskId, updatedTask);
 
+  // Increase contributor's reputation on accepted submission
+  increaseContributorReputation(submission.contributor);
+
   createNotification(
     {
       userId: submission.contributor,
@@ -527,12 +531,60 @@ export function addComment(
   return { ok: true, comment };
 }
 
+// ============================================================================
+// Reputation System
+// ============================================================================
+
+const reputations = new Map<string, ContributorReputation>();
+
+/** Points awarded to a contributor when their submission is accepted. */
+export const REPUTATION_POINTS_PER_ACCEPTED_SUBMISSION = 10;
+
+/**
+ * Returns the current reputation for a contributor.
+ * Returns a default (score=0, completedTasks=0) if no reputation exists yet.
+ */
+export function getContributorReputation(contributor: string): ContributorReputation {
+  return reputations.get(contributor) ?? {
+    contributor,
+    score: 0,
+    completedTasks: 0,
+  };
+}
+
+/**
+ * Increases a contributor's reputation score by the given amount.
+ * Increments completedTasks by 1.
+ * Designed to be extensible: future badge logic can be added here.
+ */
+export function increaseContributorReputation(
+  contributor: string,
+  scoreIncrease: number = REPUTATION_POINTS_PER_ACCEPTED_SUBMISSION,
+): ContributorReputation {
+  const current = getContributorReputation(contributor);
+  const updated: ContributorReputation = {
+    contributor,
+    score: current.score + scoreIncrease,
+    completedTasks: current.completedTasks + 1,
+  };
+  reputations.set(contributor, updated);
+  return updated;
+}
+
+/**
+ * Returns the reputation for all contributors (for leaderboard/analytics).
+ */
+export function getAllReputations(): ContributorReputation[] {
+  return Array.from(reputations.values());
+}
+
 export function resetTaskWorkflowStore() {
   tasks.clear();
   submissions.clear();
   taskSubmissions.clear();
   contributorSubmissions.clear();
   comments.clear();
+  reputations.clear();
   nextTaskId = 1;
   nextSubmissionId = 1;
   nextCommentId = 1;
