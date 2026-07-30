@@ -2,7 +2,8 @@
 
 import React from "react";
 import { motion } from "framer-motion";
-import { HandCoins } from "lucide-react";
+import { HandCoins, CirclePlus } from "lucide-react";
+import EmptyState from "@/components/EmptyState";
 
 export default function FundraisingPage() {
     return (
@@ -26,8 +27,13 @@ export default function FundraisingPage() {
                 </div>
             </motion.div>
 
-            <div className="bg-[#0A0B0F]/40 backdrop-blur-xl rounded-xl sm:rounded-2xl lg:rounded-3xl border border-white/10 p-8 text-center">
-                <p className="text-[#5A6578]">Fundraising module coming soon...</p>
+            <div className="bg-[#0A0B0F]/40 backdrop-blur-xl rounded-xl sm:rounded-2xl lg:rounded-3xl border border-white/10">
+                <EmptyState
+                    icon={CirclePlus}
+                    title="No campaigns yet"
+                    description="Start raising funds for your project. Create your first campaign to get started."
+                    action={{ label: "Create Campaign" }}
+                />
             </div>
         </div>
     );
