@@ -28,6 +28,27 @@ import {
   MIN_MAX_SUBMISSIONS,
   MAX_MAX_SUBMISSIONS,
 } from "./form-validation";
+import {
+  INVALID_EMAIL_NO_AT,
+  INVALID_TASK_BAD_POSTER,
+  INVALID_TASK_BAD_TOKEN,
+  INVALID_TASK_EMPTY_DESCRIPTION,
+  INVALID_TASK_EMPTY_TITLE,
+  INVALID_TASK_PAST_DEADLINE,
+  INVALID_TASK_ZERO_REWARD,
+  INVALID_TASK_ZERO_SUBMISSIONS,
+  INVALID_WORK_SUBMISSION_BAD_CONTRIBUTOR,
+  INVALID_WORK_SUBMISSION_EMPTY_DESCRIPTION,
+  INVALID_WORK_SUBMISSION_EMPTY_URL,
+  INVALID_WORK_SUBMISSION_INVALID_URL,
+  STANDARD_STELLAR_ADDRESS,
+  VALID_EMAIL,
+  VALID_TASK_DATA,
+  VALID_TASK_DATA_WITH_OPTIONALS,
+  VALID_WORK_SUBMISSION,
+  VALID_WORK_SUBMISSION_WITH_CONTRIBUTOR,
+} from "@/test/mock-data";
+import { futureDeadline, pastDeadline } from "@/test/fixtures";
 
 // ============================================================================
 // validateRequired
@@ -688,14 +709,7 @@ describe("validateSubmissionDescription", () => {
 // ============================================================================
 
 describe("validateCreateTaskForm", () => {
-  const validForm = {
-    title: "Build a DEX Interface",
-    description:
-      "Create a React frontend for Stellar DEX with swap UI, wallet integration, and transaction history.",
-    reward: "100",
-    deadline: String(Math.floor(Date.now() / 1000) + 30 * 24 * 60 * 60), // 30 days
-    maxSubmissions: "3",
-  };
+  const validForm = VALID_TASK_DATA;
 
   it("accepts a completely valid form", () => {
     const result = validateCreateTaskForm(validForm);
@@ -704,7 +718,7 @@ describe("validateCreateTaskForm", () => {
   });
 
   it("rejects empty title", () => {
-    const result = validateCreateTaskForm({ ...validForm, title: "" });
+    const result = validateCreateTaskForm(INVALID_TASK_EMPTY_TITLE);
     expect(result.ok).toBe(false);
     expect(result.errors.title).toBeDefined();
   });
@@ -716,44 +730,40 @@ describe("validateCreateTaskForm", () => {
   });
 
   it("rejects empty description", () => {
-    const result = validateCreateTaskForm({ ...validForm, description: "" });
+    const result = validateCreateTaskForm(INVALID_TASK_EMPTY_DESCRIPTION);
     expect(result.ok).toBe(false);
     expect(result.errors.description).toBeDefined();
   });
 
   it("rejects invalid reward", () => {
-    const result = validateCreateTaskForm({ ...validForm, reward: "0" });
+    const result = validateCreateTaskForm(INVALID_TASK_ZERO_REWARD);
     expect(result.ok).toBe(false);
     expect(result.errors.reward).toBeDefined();
   });
 
   it("rejects past deadline", () => {
-    const past = String(Math.floor(Date.now() / 1000) - 3600);
-    const result = validateCreateTaskForm({ ...validForm, deadline: past });
+    const result = validateCreateTaskForm({
+      ...validForm,
+      deadline: String(pastDeadline()),
+    });
     expect(result.ok).toBe(false);
     expect(result.errors.deadline).toBeDefined();
   });
 
   it("rejects invalid max submissions", () => {
-    const result = validateCreateTaskForm({ ...validForm, maxSubmissions: "0" });
+    const result = validateCreateTaskForm(INVALID_TASK_ZERO_SUBMISSIONS);
     expect(result.ok).toBe(false);
     expect(result.errors.maxSubmissions).toBeDefined();
   });
 
   it("validates token address if provided", () => {
-    const result = validateCreateTaskForm({
-      ...validForm,
-      token: "invalid-token",
-    });
+    const result = validateCreateTaskForm(INVALID_TASK_BAD_TOKEN);
     expect(result.ok).toBe(false);
     expect(result.errors.token).toBeDefined();
   });
 
   it("accepts valid token address", () => {
-    const result = validateCreateTaskForm({
-      ...validForm,
-      token: "GABCDEFGHIJKLMNOPQRSTUVWXYZ234567ABCDEFGHIJKLMNOPQRSTUVWXYZ234567",
-    });
+    const result = validateCreateTaskForm(VALID_TASK_DATA_WITH_OPTIONALS);
     expect(result.ok).toBe(true);
   });
 
@@ -763,10 +773,7 @@ describe("validateCreateTaskForm", () => {
   });
 
   it("validates poster address if provided", () => {
-    const result = validateCreateTaskForm({
-      ...validForm,
-      posterAddress: "bad-address",
-    });
+    const result = validateCreateTaskForm(INVALID_TASK_BAD_POSTER);
     expect(result.ok).toBe(false);
     expect(result.errors.posterAddress).toBeDefined();
   });
@@ -793,11 +800,7 @@ describe("validateCreateTaskForm", () => {
 // ============================================================================
 
 describe("validateWorkSubmissionForm", () => {
-  const validForm = {
-    workUrl: "https://github.com/user/task-submission",
-    description:
-      "Implemented all required features for the DEX interface including swap, liquidity pools, and wallet integration.",
-  };
+  const validForm = VALID_WORK_SUBMISSION;
 
   it("accepts a completely valid submission form", () => {
     const result = validateWorkSubmissionForm(validForm);
@@ -805,34 +808,25 @@ describe("validateWorkSubmissionForm", () => {
   });
 
   it("rejects empty work URL", () => {
-    const result = validateWorkSubmissionForm({ ...validForm, workUrl: "" });
+    const result = validateWorkSubmissionForm(INVALID_WORK_SUBMISSION_EMPTY_URL);
     expect(result.ok).toBe(false);
     expect(result.errors.workUrl).toBeDefined();
   });
 
   it("rejects invalid work URL", () => {
-    const result = validateWorkSubmissionForm({
-      ...validForm,
-      workUrl: "not-a-url",
-    });
+    const result = validateWorkSubmissionForm(INVALID_WORK_SUBMISSION_INVALID_URL);
     expect(result.ok).toBe(false);
     expect(result.errors.workUrl).toBeDefined();
   });
 
   it("rejects empty description", () => {
-    const result = validateWorkSubmissionForm({
-      ...validForm,
-      description: "",
-    });
+    const result = validateWorkSubmissionForm(INVALID_WORK_SUBMISSION_EMPTY_DESCRIPTION);
     expect(result.ok).toBe(false);
     expect(result.errors.description).toBeDefined();
   });
 
   it("validates contributor address if provided", () => {
-    const result = validateWorkSubmissionForm({
-      ...validForm,
-      contributorAddress: "bad",
-    });
+    const result = validateWorkSubmissionForm(INVALID_WORK_SUBMISSION_BAD_CONTRIBUTOR);
     expect(result.ok).toBe(false);
     expect(result.errors.contributorAddress).toBeDefined();
   });
@@ -846,11 +840,7 @@ describe("validateWorkSubmissionForm", () => {
   });
 
   it("accepts valid contributor address", () => {
-    const result = validateWorkSubmissionForm({
-      ...validForm,
-      contributorAddress:
-        "GABCDEFGHIJKLMNOPQRSTUVWXYZ234567ABCDEFGHIJKLMNOPQRSTUVWXYZ234567",
-    });
+    const result = validateWorkSubmissionForm(VALID_WORK_SUBMISSION_WITH_CONTRIBUTOR);
     expect(result.ok).toBe(true);
   });
 });
@@ -867,13 +857,13 @@ describe("validateWaitlistForm", () => {
   });
 
   it("rejects invalid email", () => {
-    const result = validateWaitlistForm("not-email");
+    const result = validateWaitlistForm(INVALID_EMAIL_NO_AT);
     expect(result.ok).toBe(false);
     expect(result.error).toBe("Please enter a valid email address.");
   });
 
   it("accepts valid email", () => {
-    const result = validateWaitlistForm("user@example.com");
+    const result = validateWaitlistForm(VALID_EMAIL);
     expect(result.ok).toBe(true);
   });
 });

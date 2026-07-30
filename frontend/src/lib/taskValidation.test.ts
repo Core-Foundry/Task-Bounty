@@ -1,15 +1,16 @@
 import { describe, it, expect } from 'vitest';
 import { taskSchema } from './taskValidation';
+import {
+  INVALID_TASK_SCHEMA_NEGATIVE_REWARD,
+  INVALID_TASK_SCHEMA_PAST_DEADLINE,
+  INVALID_TASK_SCHEMA_PRESENT_DEADLINE,
+  INVALID_TASK_SCHEMA_ZERO_REWARD,
+  VALID_TASK_SCHEMA_DATA,
+} from '@/test/mock-data';
+import { futureDateIso, pastDateIso } from '@/test/fixtures';
 
 describe('taskValidation schema', () => {
-  const validData = {
-    title: 'Valid Task Title',
-    description: 'This is a valid task description.',
-    tokenAddress: 'GBVVRXLMNCJTIGXBP2K3C6KHK6BOMW2G5B2ZNYAQUV4K3QY4K6SDBPQD',
-    reward: 100,
-    deadline: new Date(Date.now() + 86400000).toISOString(), // Tomorrow
-    maxSubmissions: 5,
-  };
+  const validData = VALID_TASK_SCHEMA_DATA;
 
   it('should pass with valid data (happy path)', () => {
     const result = taskSchema.safeParse(validData);
@@ -17,11 +18,8 @@ describe('taskValidation schema', () => {
   });
 
   it('should reject when reward is zero or negative', () => {
-    const invalidZero = { ...validData, reward: 0 };
-    const invalidNegative = { ...validData, reward: -50 };
-
-    const resultZero = taskSchema.safeParse(invalidZero);
-    const resultNegative = taskSchema.safeParse(invalidNegative);
+    const resultZero = taskSchema.safeParse(INVALID_TASK_SCHEMA_ZERO_REWARD);
+    const resultNegative = taskSchema.safeParse(INVALID_TASK_SCHEMA_NEGATIVE_REWARD);
 
     expect(resultZero.success).toBe(false);
     expect(resultNegative.success).toBe(false);
@@ -30,7 +28,7 @@ describe('taskValidation schema', () => {
   it('should reject when deadline is in the past or present', () => {
     const invalidPast = {
       ...validData,
-      deadline: new Date(Date.now() - 86400000).toISOString(), // Yesterday
+      deadline: pastDateIso(), // Yesterday
     };
 
     const invalidPresent = {

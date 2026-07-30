@@ -18,41 +18,32 @@ import {
   type NotificationCategory,
   type NotificationPreferences,
 } from "./useNotificationPreferences";
+import {
+  cleanupLocalStorageMock,
+  createLocalStorageMock,
+  setupLocalStorageMock,
+} from "@/test/fixtures";
+import {
+  DEFAULT_NOTIFICATION_PREFS,
+  MODIFIED_NOTIFICATION_PREFS,
+} from "@/test/mock-data";
 
 // ---------------------------------------------------------------------------
 // localStorage stub (node environment has no DOM)
 // ---------------------------------------------------------------------------
 
-const store: Record<string, string> = {};
-
-const localStorageMock = {
-  getItem: vi.fn((key: string) => store[key] ?? null),
-  setItem: vi.fn((key: string, value: string) => {
-    store[key] = value;
-  }),
-  removeItem: vi.fn((key: string) => {
-    delete store[key];
-  }),
-  clear: vi.fn(() => {
-    Object.keys(store).forEach((k) => delete store[k]);
-  }),
-  get length() {
-    return Object.keys(store).length;
-  },
-  key: vi.fn((index: number) => Object.keys(store)[index] ?? null),
-};
+const localStorageMock = createLocalStorageMock();
 
 beforeEach(() => {
   // Expose the mock as globalThis.localStorage so the module's typeof window
   // check passes in the node test environment.
-  vi.stubGlobal("window", { localStorage: localStorageMock });
-  vi.stubGlobal("localStorage", localStorageMock);
+  setupLocalStorageMock(localStorageMock);
   localStorageMock.clear();
   vi.clearAllMocks();
 });
 
 afterEach(() => {
-  vi.unstubAllGlobals();
+  cleanupLocalStorageMock();
 });
 
 // ---------------------------------------------------------------------------
@@ -120,11 +111,7 @@ describe("localStorage persistence helpers", () => {
   });
 
   it("stores preferences as JSON and retrieves them correctly", async () => {
-    const prefs: NotificationPreferences = {
-      ...DEFAULT_NOTIFICATION_PREFERENCES,
-      payments: false,
-      disputes: false,
-    };
+    const prefs: NotificationPreferences = MODIFIED_NOTIFICATION_PREFS;
 
     // Manually simulate what saveToStorage does
     localStorageMock.setItem(NOTIFICATION_PREFS_KEY, JSON.stringify(prefs));
@@ -150,7 +137,7 @@ describe("localStorage persistence helpers", () => {
 
 describe("preference mutation helpers", () => {
   it("toggle flips a single category", () => {
-    const prefs: NotificationPreferences = { ...DEFAULT_NOTIFICATION_PREFERENCES };
+    const prefs: NotificationPreferences = DEFAULT_NOTIFICATION_PREFS;
 
     const toggled: NotificationPreferences = {
       ...prefs,
@@ -162,7 +149,7 @@ describe("preference mutation helpers", () => {
   });
 
   it("setAll(false) disables all categories", () => {
-    const prefs: NotificationPreferences = { ...DEFAULT_NOTIFICATION_PREFERENCES };
+    const prefs: NotificationPreferences = DEFAULT_NOTIFICATION_PREFS;
     const updated = { ...prefs } as NotificationPreferences;
 
     for (const cat of NOTIFICATION_CATEGORIES) {
@@ -195,7 +182,7 @@ describe("preference mutation helpers", () => {
   });
 
   it("update merges partial preferences over existing ones", () => {
-    const prefs: NotificationPreferences = { ...DEFAULT_NOTIFICATION_PREFERENCES };
+    const prefs: NotificationPreferences = DEFAULT_NOTIFICATION_PREFS;
     const partial: Partial<NotificationPreferences> = {
       payments: false,
     };
@@ -208,14 +195,10 @@ describe("preference mutation helpers", () => {
   });
 
   it("reset restores defaults", () => {
-    const modified: NotificationPreferences = {
-      ...DEFAULT_NOTIFICATION_PREFERENCES,
-      payments: false,
-      disputes: false,
-    };
+    const modified: NotificationPreferences = MODIFIED_NOTIFICATION_PREFS;
 
     // After reset we should get defaults back
-    const afterReset: NotificationPreferences = { ...DEFAULT_NOTIFICATION_PREFERENCES };
+    const afterReset: NotificationPreferences = DEFAULT_NOTIFICATION_PREFS;
 
     for (const cat of NOTIFICATION_CATEGORIES) {
       expect(afterReset[cat]).toBe(DEFAULT_NOTIFICATION_PREFERENCES[cat]);

@@ -4,30 +4,16 @@ import { GET as getTaskById } from "@/app/api/tasks/[taskId]/route";
 import { POST as submitTaskWork } from "@/app/api/tasks/[taskId]/submissions/route";
 import { POST as createTask } from "@/app/api/tasks/route";
 import { resetTaskWorkflowStore } from "@/lib/task-workflow";
-
-const POSTER = "GPOSTER1234567890ABCDEFGHIJKLMNOPQRSTUVWXYZ";
-const CONTRIBUTOR = "GCONTRIB1234567890ABCDEFGHIJKLMNOPQRSTUVWXYZ";
-
-function createPdfFile(name = "submission.pdf") {
-  return new File(
-    [
-      new Uint8Array([0x25, 0x50, 0x44, 0x46, 0x2d, 0x31, 0x2e, 0x37]),
-      "\nMock pdf payload",
-    ],
-    name,
-    {
-      type: "application/pdf",
-    },
-  );
-}
-
-function futureDeadline(offsetSeconds = 86_400) {
-  return Math.floor(Date.now() / 1000) + offsetSeconds;
-}
-
-function taskRouteContext(taskId: string) {
-  return { params: Promise.resolve({ taskId }) };
-}
+import {
+  createPdfFile,
+  futureDeadline,
+  taskRouteContext,
+} from "@/test/fixtures";
+import {
+  CONTRIBUTOR_ADDRESS,
+  POSTER_ADDRESS,
+  VALID_TASK_DATA,
+} from "@/test/mock-data";
 
 async function createTaskRequest(overrides: Record<string, unknown> = {}) {
   return createTask(
@@ -35,12 +21,8 @@ async function createTaskRequest(overrides: Record<string, unknown> = {}) {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
-        poster: POSTER,
-        title: "Build task submission E2E coverage",
-        description: "Verify create, submit, and status transitions end to end.",
-        reward: 10_000_000,
-        deadline: futureDeadline(),
-        maxSubmissions: 3,
+        poster: POSTER_ADDRESS,
+        ...VALID_TASK_DATA,
         ...overrides,
       }),
     }),
@@ -65,7 +47,7 @@ describe("task submission workflow (e2e)", () => {
       ok: true,
       task: {
         id: "1",
-        poster: POSTER,
+        poster: POSTER_ADDRESS,
         status: "open",
         submissionCount: 0,
       },
@@ -83,7 +65,7 @@ describe("task submission workflow (e2e)", () => {
     expect(initialTaskBody.task.status).toBe("open");
 
     const formData = new FormData();
-    formData.append("contributor", CONTRIBUTOR);
+    formData.append("contributor", CONTRIBUTOR_ADDRESS);
     formData.append("description", "Delivered the requested implementation with proof attached.");
     formData.append("workUrl", "https://example.com/proof");
     formData.append("files", createPdfFile());
@@ -110,7 +92,7 @@ describe("task submission workflow (e2e)", () => {
       submission: {
         id: "1",
         taskId,
-        contributor: CONTRIBUTOR,
+        contributor: CONTRIBUTOR_ADDRESS,
         status: "pending",
         workUrl: "https://example.com/proof",
       },
@@ -140,7 +122,7 @@ describe("task submission workflow (e2e)", () => {
     const taskId = created.task.id as string;
 
     const formData = new FormData();
-    formData.append("contributor", CONTRIBUTOR);
+    formData.append("contributor", CONTRIBUTOR_ADDRESS);
     formData.append("description", "First submission.");
     formData.append("files", createPdfFile("first.pdf"));
 
@@ -154,7 +136,7 @@ describe("task submission workflow (e2e)", () => {
     expect(firstSubmit.status).toBe(201);
 
     const duplicateFormData = new FormData();
-    duplicateFormData.append("contributor", CONTRIBUTOR);
+    duplicateFormData.append("contributor", CONTRIBUTOR_ADDRESS);
     duplicateFormData.append("description", "Duplicate submission.");
     duplicateFormData.append("files", createPdfFile("second.pdf"));
 
@@ -207,7 +189,7 @@ describe("task submission workflow (e2e)", () => {
     const taskId = created.task.id as string;
 
     const formData = new FormData();
-    formData.append("contributor", CONTRIBUTOR);
+    formData.append("contributor", CONTRIBUTOR_ADDRESS);
     formData.append("description", "Missing proof files.");
 
     const submitResponse = await submitTaskWork(

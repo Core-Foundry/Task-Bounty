@@ -5,6 +5,11 @@
  * run in a pure Node environment without a real Stellar wallet or browser extension.
  */
 import { describe, expect, it, vi, beforeEach, afterEach } from "vitest";
+import {
+  cleanupLocalStorageMock,
+  createLocalStorageMock,
+  setupLocalStorageMock,
+} from "@/test/fixtures";
 
 // ---------------------------------------------------------------------------
 // Mocks — declared before vi.mock() so they are available in the factory
@@ -49,19 +54,7 @@ vi.mock("@/lib/env", () => ({
 // localStorage stub
 // ---------------------------------------------------------------------------
 
-const localStore: Record<string, string> = {};
-const localStorageMock = {
-  getItem: vi.fn((key: string) => localStore[key] ?? null),
-  setItem: vi.fn((key: string, value: string) => {
-    localStore[key] = value;
-  }),
-  removeItem: vi.fn((key: string) => {
-    delete localStore[key];
-  }),
-  clear: vi.fn(() => {
-    Object.keys(localStore).forEach((k) => delete localStore[k]);
-  }),
-};
+const localStorageMock = createLocalStorageMock();
 
 // ---------------------------------------------------------------------------
 // Setup / teardown
@@ -73,12 +66,11 @@ beforeEach(() => {
   localStorageMock.clear();
 
   // Stub window so `typeof window !== "undefined"` is true in the module
-  vi.stubGlobal("window", { localStorage: localStorageMock });
-  vi.stubGlobal("localStorage", localStorageMock);
+  setupLocalStorageMock(localStorageMock);
 });
 
 afterEach(() => {
-  vi.unstubAllGlobals();
+  cleanupLocalStorageMock();
 });
 
 async function loadKit() {
