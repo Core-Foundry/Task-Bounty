@@ -4,7 +4,9 @@
 import React from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { SearchX } from "lucide-react";
 import type { CompletedTask } from "@/types/task";
+import EmptyState from "@/components/EmptyState";
 
 interface TaskListProps {
   tasks: CompletedTask[];
@@ -13,10 +15,11 @@ interface TaskListProps {
 export function TaskList({ tasks }: TaskListProps) {
   if (tasks.length === 0) {
     return (
-      <div className="flex flex-col items-center justify-center py-20 text-center">
-        <h3 className="text-xl font-semibold text-white mb-2">No tasks found</h3>
-        <p className="text-muted-foreground">Try adjusting your filters to see more results</p>
-      </div>
+      <EmptyState
+        icon={SearchX}
+        title="No tasks found"
+        description="Try adjusting your filters to see more results"
+      />
     );
   }
 

@@ -15,7 +15,6 @@ import {
   NOTIFICATION_CATEGORIES,
   NOTIFICATION_CATEGORY_LABELS,
   NOTIFICATION_PREFS_KEY,
-  type NotificationCategory,
   type NotificationPreferences,
 } from "./useNotificationPreferences";
 import {
@@ -96,17 +95,10 @@ describe("NOTIFICATION_CATEGORY_LABELS", () => {
 // Storage round-trip (import helpers under a controlled window stub)
 // ---------------------------------------------------------------------------
 
-async function getHelpers() {
-  vi.resetModules();
-  const mod = await import("./useNotificationPreferences");
-  return mod;
-}
-
 describe("localStorage persistence helpers", () => {
-  it("loadFromStorage returns null when no key is stored", async () => {
-    const { loadFromStorage } = await import("./useNotificationPreferences") as any;
-    // loadFromStorage is not exported — tested indirectly via saveToStorage below
-    // We verify round-trip via save + item presence
+  it("loadFromStorage returns null when no key is stored", () => {
+    // loadFromStorage is internal; its contract is verified indirectly via
+    // the storage round-trip below.
     expect(localStorageMock.getItem(NOTIFICATION_PREFS_KEY)).toBeNull();
   });
 

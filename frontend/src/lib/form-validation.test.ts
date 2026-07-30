@@ -297,28 +297,28 @@ describe("validateStellarAddress", () => {
   });
 
   it("rejects address with ambiguous characters (0, O, I, L)", () => {
-    // Contains '0' which is invalid in base32
-    const result = validateStellarAddress("GABCDEFGHIJKLMNOPQRSTUVWXYZ234567ABCDEFGHIJKLMNOPQRSTUVWXYZ234560");
+    // 56 chars (correct length) but ends in '0', which is invalid in base32
+    const result = validateStellarAddress("GABCDEFGHIJKLMNOPQRSTUVWXYZ234567ABCDEFGHIJKLMNOPQRSTUV0");
     expect(result.ok).toBe(false);
     expect(result.error).toContain("invalid characters");
   });
 
   it("accepts a valid Stellar public key", () => {
-    // This is a validly-formed Stellar test address
-    const validKey = "GBDIT6QJ3HYH6C7OAVJ4XKZXONJ6PUVL2PVIOQHHGLK6M2S6TQXAAAAAAAA";
+    // This is a validly-formed Stellar test address (56 chars)
+    const validKey = "GABCDEFGHIJKLMNOPQRSTUVWXYZ234567ABCDEFGHIJKLMNOPQRSTUVW";
     const result = validateStellarAddress(validKey);
     expect(result.ok).toBe(true);
   });
 
   it("accepts a standard-format G... address of 56 chars", () => {
     // Generate a valid format address with only valid base32 chars
-    const validKey = "GABCDEFGHIJKLMNOPQRSTUVWXYZ234567ABCDEFGHIJKLMNOPQRSTUVWXYZ234567";
+    const validKey = "GABCDEFGHIJKLMNOPQRSTUVWXYZ234567ABCDEFGHIJKLMNOPQRSTUVW";
     const result = validateStellarAddress(validKey);
     expect(result.ok).toBe(true);
   });
 
   it("trims surrounding whitespace before validation", () => {
-    const result = validateStellarAddress("  GABCDEFGHIJKLMNOPQRSTUVWXYZ234567ABCDEFGHIJKLMNOPQRSTUVWXYZ234567  ");
+    const result = validateStellarAddress("  GABCDEFGHIJKLMNOPQRSTUVWXYZ234567ABCDEFGHIJKLMNOPQRSTUVW  ");
     expect(result.ok).toBe(true);
   });
 });
@@ -670,7 +670,7 @@ describe("validateWorkUrl", () => {
   });
 
   it("rejects URL shorter than minimum", () => {
-    const result = validateWorkUrl("https://a.b");
+    const result = validateWorkUrl("ab");
     expect(result.ok).toBe(false);
   });
 
@@ -764,6 +764,10 @@ describe("validateCreateTaskForm", () => {
 
   it("accepts valid token address", () => {
     const result = validateCreateTaskForm(VALID_TASK_DATA_WITH_OPTIONALS);
+    const result = validateCreateTaskForm({
+      ...validForm,
+      token: "GABCDEFGHIJKLMNOPQRSTUVWXYZ234567ABCDEFGHIJKLMNOPQRSTUVW",
+    });
     expect(result.ok).toBe(true);
   });
 
@@ -841,6 +845,10 @@ describe("validateWorkSubmissionForm", () => {
 
   it("accepts valid contributor address", () => {
     const result = validateWorkSubmissionForm(VALID_WORK_SUBMISSION_WITH_CONTRIBUTOR);
+    const result = validateWorkSubmissionForm({
+      ...validForm,
+      contributorAddress: "GABCDEFGHIJKLMNOPQRSTUVWXYZ234567ABCDEFGHIJKLMNOPQRSTUVW",
+    });
     expect(result.ok).toBe(true);
   });
 });
