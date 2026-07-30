@@ -1,7 +1,10 @@
 import type {
   CreateTaskInput,
+  ListTasksQuery,
+  ListTasksResult,
   SubmissionRecord,
   SubmitTaskInput,
+  TaskDifficulty,
   TaskRecord,
   TaskStatus,
 } from "@/types/task-workflow";
@@ -9,6 +12,11 @@ import type { ValidatedTaskSubmissionFile } from "@/lib/task-submission-files";
 
 export const MIN_TASK_REWARD = 1_000_000;
 export const MAX_TASK_DEADLINE_OFFSET_SECONDS = 365 * 24 * 60 * 60;
+
+export const DEFAULT_TASK_DIFFICULTY: TaskDifficulty = "intermediate";
+export const DEFAULT_PAGE_SIZE = 10;
+export const MAX_PAGE_SIZE = 50;
+const TASK_DIFFICULTIES: TaskDifficulty[] = ["beginner", "intermediate", "advanced"];
 
 type WorkflowSuccess<T> = { ok: true } & T;
 
@@ -91,6 +99,14 @@ export function createTask(
     submissionCount: 0,
     status: "open",
     createdAt: now.toISOString(),
+    difficulty:
+      input.difficulty && TASK_DIFFICULTIES.includes(input.difficulty)
+        ? input.difficulty
+        : DEFAULT_TASK_DIFFICULTY,
+    technologies: (input.technologies ?? [])
+      .map((tech) => tech.trim())
+      .filter((tech) => tech.length > 0),
+    organization: input.organization?.trim() ?? "",
   };
 
   tasks.set(id, task);
@@ -112,6 +128,82 @@ export function getTask(taskId: string): WorkflowResult<{ task: TaskRecord }> {
   }
 
   return { ok: true, task: { ...task } };
+}
+
+/**
+ * Advanced bounty discovery: filters combine with AND semantics, results
+ * are sorted, then paginated. Pure/read-only — safe to call repeatedly as
+ * filter state changes.
+ */
+export function listTasks(query: ListTasksQuery = {}): ListTasksResult {
+  const search = query.search?.trim().toLowerCase();
+  const technology = query.technology?.trim().toLowerCase();
+  const organization = query.organization?.trim().toLowerCase();
+
+  const filtered = Array.from(tasks.values()).filter((task) => {
+    if (typeof query.minReward === "number" && task.reward < query.minReward) {
+      return false;
+    }
+    if (typeof query.maxReward === "number" && task.reward > query.maxReward) {
+      return false;
+    }
+    if (query.difficulty && task.difficulty !== query.difficulty) {
+      return false;
+    }
+    if (
+      technology &&
+      !task.technologies.some((tech) => tech.toLowerCase().includes(technology))
+    ) {
+      return false;
+    }
+    if (organization && !task.organization.toLowerCase().includes(organization)) {
+      return false;
+    }
+    if (search) {
+      const haystack = `${task.title} ${task.description}`.toLowerCase();
+      if (!haystack.includes(search)) {
+        return false;
+      }
+    }
+    return true;
+  });
+
+  const sort = query.sort ?? "newest";
+  filtered.sort((a, b) => {
+    switch (sort) {
+      case "reward_desc":
+        return b.reward - a.reward;
+      case "deadline_asc":
+        return a.deadline - b.deadline;
+      case "newest":
+      default:
+        return b.createdAt.localeCompare(a.createdAt);
+    }
+  });
+
+  const total = filtered.length;
+  const pageSize = Math.min(
+    MAX_PAGE_SIZE,
+    Math.max(
+      1,
+      Number.isFinite(query.pageSize) && query.pageSize
+        ? Math.floor(query.pageSize)
+        : DEFAULT_PAGE_SIZE,
+    ),
+  );
+  const totalPages = Math.max(1, Math.ceil(total / pageSize));
+  const page = Math.min(
+    totalPages,
+    Math.max(
+      1,
+      Number.isFinite(query.page) && query.page ? Math.floor(query.page) : 1,
+    ),
+  );
+
+  const start = (page - 1) * pageSize;
+  const pageTasks = filtered.slice(start, start + pageSize).map((task) => ({ ...task }));
+
+  return { tasks: pageTasks, total, page, pageSize, totalPages };
 }
 
 export function submitTaskWork(
