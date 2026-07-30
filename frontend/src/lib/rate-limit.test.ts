@@ -200,8 +200,13 @@ describe("endpoint rate-limit integration", () => {
     process.env.API_RATE_LIMIT_WINDOW_MS = "60000";
   });
 
+  type RouteHandler = (
+    request: Request,
+    context: { params: Promise<{ taskId: string }> },
+  ) => Promise<Response>;
+
   async function checkEndpointEnforces(
-    importFn: () => Promise<{ GET?: Function; POST?: Function }>,
+    importFn: () => Promise<{ GET?: RouteHandler; POST?: RouteHandler }>,
     method: "GET" | "POST",
     buildRequest: () => Request,
   ) {
