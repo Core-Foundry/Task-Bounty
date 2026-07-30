@@ -1,26 +1,16 @@
 import { describe, expect, it } from "vitest";
 
 import { calculateContributorProfileCompletion } from "@/lib/contributor-profile";
+import {
+  PARTIAL_CONTRIBUTOR_PROFILE,
+  PROFILE_FIELD_DEFINITIONS,
+} from "@/test/mock-data";
 
 describe("calculateContributorProfileCompletion", () => {
   it("returns completion percentage and missing fields", () => {
     const result = calculateContributorProfileCompletion(
-      {
-        name: "Ada Lovelace",
-        headline: "Engineer",
-        bio: "",
-        location: "",
-        skills: "",
-        website: "",
-      },
-      [
-        { key: "name", label: "Full name" },
-        { key: "headline", label: "Headline" },
-        { key: "bio", label: "Bio" },
-        { key: "location", label: "Location" },
-        { key: "skills", label: "Skills" },
-        { key: "website", label: "Website" },
-      ],
+      PARTIAL_CONTRIBUTOR_PROFILE,
+      PROFILE_FIELD_DEFINITIONS,
     );
 
     expect(result.percentage).toBe(33);

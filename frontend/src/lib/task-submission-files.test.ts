@@ -7,21 +7,14 @@ import {
   MAX_TASK_SUBMISSION_FILE_SIZE_BYTES,
   validateTaskSubmissionFiles,
 } from "@/lib/task-submission-files";
-
-function createPdfFile(name = "submission.pdf") {
-  return new File([
-    new Uint8Array([0x25, 0x50, 0x44, 0x46, 0x2d, 0x31, 0x2e, 0x37]),
-    "\nMock pdf payload",
-  ], name, {
-    type: "application/pdf",
-  });
-}
-
-function createZipFile(name = "submission.zip") {
-  return new File([new Uint8Array([0x50, 0x4b, 0x03, 0x04, 0x14, 0x00])], name, {
-    type: "application/zip",
-  });
-}
+import {
+  createFileValidationFormData,
+  createFormDataPostRequest,
+  createMarkdownFile,
+  createOversizedFile,
+  createPdfFile,
+  createZipFile,
+} from "@/test/fixtures";
 
 describe("validateTaskSubmissionFiles", () => {
   it("accepts a supported file when extension, MIME type, and content match", async () => {
@@ -42,9 +35,7 @@ describe("validateTaskSubmissionFiles", () => {
 
   it("accepts UTF-8 markdown files even when the browser sends a generic MIME type", async () => {
     const result = await validateTaskSubmissionFiles([
-      new File(["# Task proof\nCompleted all requested changes."], "proof.md", {
-        type: "application/octet-stream",
-      }),
+      createMarkdownFile(),
     ]);
 
     expect(result.ok).toBe(true);
@@ -100,11 +91,7 @@ describe("validateTaskSubmissionFiles", () => {
   });
 
   it("rejects oversized files", async () => {
-    const oversized = new File([
-      new Uint8Array(MAX_TASK_SUBMISSION_FILE_SIZE_BYTES + 1),
-    ], "oversized.pdf", {
-      type: "application/pdf",
-    });
+    const oversized = createOversizedFile(MAX_TASK_SUBMISSION_FILE_SIZE_BYTES + 1);
 
     const result = await validateTaskSubmissionFiles([oversized]);
 
@@ -132,14 +119,10 @@ describe("extractTaskSubmissionFiles", () => {
 
 describe("POST /api/task-submissions/validate", () => {
   it("returns validation metadata for valid uploads", async () => {
-    const formData = new FormData();
-    formData.append("files", createPdfFile());
+    const formData = createFileValidationFormData(createPdfFile());
 
     const response = await POST(
-      new Request("http://localhost/api/task-submissions/validate", {
-        method: "POST",
-        body: formData,
-      }),
+      createFormDataPostRequest("http://localhost/api/task-submissions/validate", formData),
     );
 
     expect(response.status).toBe(200);
@@ -162,10 +145,7 @@ describe("POST /api/task-submissions/validate", () => {
     formData.append("taskId", "123");
 
     const response = await POST(
-      new Request("http://localhost/api/task-submissions/validate", {
-        method: "POST",
-        body: formData,
-      }),
+      createFormDataPostRequest("http://localhost/api/task-submissions/validate", formData),
     );
 
     expect(response.status).toBe(400);
