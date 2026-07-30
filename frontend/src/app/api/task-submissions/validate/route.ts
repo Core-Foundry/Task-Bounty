@@ -7,6 +7,7 @@ import {
   MAX_TASK_SUBMISSION_TOTAL_SIZE_BYTES,
   validateTaskSubmissionFiles,
 } from "@/lib/task-submission-files";
+import { buildErrorResponse } from "@/lib/api-response";
 import { checkRateLimit } from "@/lib/rate-limit";
 
 export const runtime = "nodejs";
@@ -35,12 +36,12 @@ export async function POST(request: Request) {
   try {
     formData = await request.formData();
   } catch {
-    return buildNoStoreJson(
-      {
-        ok: false,
-        error: "Please upload files using a valid form.",
-      },
+    return buildErrorResponse(
+      "Please upload files using a valid form.",
       400,
+      "INVALID_FORM_DATA",
+      undefined,
+      undefined,
       rateLimitHeaders,
     );
   }
@@ -49,18 +50,16 @@ export async function POST(request: Request) {
   const validation = await validateTaskSubmissionFiles(files);
 
   if (!validation.ok) {
-    return buildNoStoreJson(
-      {
-        ok: false,
-        error: "Invalid task submission upload.",
-        details: validation.errors,
-        limits: {
-          maxFiles: MAX_TASK_SUBMISSION_FILES,
-          maxFileSizeBytes: MAX_TASK_SUBMISSION_FILE_SIZE_BYTES,
-          maxTotalSizeBytes: MAX_TASK_SUBMISSION_TOTAL_SIZE_BYTES,
-        },
-      },
+    return buildErrorResponse(
+      "Invalid task submission upload.",
       validation.status,
+      "FILE_VALIDATION_FAILED",
+      validation.errors,
+      {
+        maxFiles: MAX_TASK_SUBMISSION_FILES,
+        maxFileSizeBytes: MAX_TASK_SUBMISSION_FILE_SIZE_BYTES,
+        maxTotalSizeBytes: MAX_TASK_SUBMISSION_TOTAL_SIZE_BYTES,
+      },
       rateLimitHeaders,
     );
   }

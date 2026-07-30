@@ -1,5 +1,5 @@
 import { getDashboardStatistics } from "@/lib/dashboard-stats";
-import { buildNoStoreJson } from "@/lib/api-response";
+import { buildErrorResponse, buildNoStoreJson } from "@/lib/api-response";
 import { checkRateLimit } from "@/lib/rate-limit";
 
 export const runtime = "nodejs";
@@ -16,15 +16,26 @@ export async function GET(request: Request) {
     return rateLimitResponse;
   }
 
-  const result = getDashboardStatistics();
+  try {
+    const result = getDashboardStatistics();
 
-  return buildNoStoreJson(
-    {
-      ok: true,
-      stats: result.stats,
-      meta: result.meta,
-    },
-    200,
-    rateLimitHeaders,
-  );
+    return buildNoStoreJson(
+      {
+        ok: true,
+        stats: result.stats,
+        meta: result.meta,
+      },
+      200,
+      rateLimitHeaders,
+    );
+  } catch (error) {
+    return buildErrorResponse(
+      "Failed to retrieve dashboard statistics.",
+      500,
+      "STATS_FETCH_FAILED",
+      error instanceof Error ? [error.message] : undefined,
+      undefined,
+      rateLimitHeaders,
+    );
+  }
 }

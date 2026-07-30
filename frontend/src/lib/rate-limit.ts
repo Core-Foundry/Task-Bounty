@@ -1,5 +1,7 @@
 import { NextResponse } from "next/server";
 
+import { buildErrorResponse } from "./api-response";
+
 const DEFAULT_LIMIT = 60;
 const DEFAULT_WINDOW_MS = 60_000;
 const RATE_LIMIT_WINDOW_MS_ENV = "API_RATE_LIMIT_WINDOW_MS";
@@ -114,22 +116,20 @@ export function checkRateLimit(request: Request): RateLimitResult {
 
   if (existing.count >= maxRequests) {
     const retryAfterSeconds = Math.max(1, Math.ceil((existing.resetAt - now) / 1000));
+    const headers = {
+      "Retry-After": String(retryAfterSeconds),
+      "X-RateLimit-Limit": String(maxRequests),
+      "X-RateLimit-Remaining": "0",
+      "X-RateLimit-Reset": String(Math.ceil(existing.resetAt / 1000)),
+    };
     return {
-      response: new NextResponse(
-        JSON.stringify({
-          ok: false,
-          error: "Too many requests. Please try again later.",
-        }),
-        {
-          status: 429,
-          headers: {
-            "Content-Type": "application/json",
-            "Retry-After": String(retryAfterSeconds),
-            "X-RateLimit-Limit": String(maxRequests),
-            "X-RateLimit-Remaining": "0",
-            "X-RateLimit-Reset": String(Math.ceil(existing.resetAt / 1000)),
-          },
-        },
+      response: buildErrorResponse(
+        "Too many requests. Please try again later.",
+        429,
+        "RATE_LIMIT_EXCEEDED",
+        undefined,
+        undefined,
+        headers,
       ),
       headers: {},
     };
