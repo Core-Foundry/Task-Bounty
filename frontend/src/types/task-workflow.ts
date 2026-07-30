@@ -73,3 +73,30 @@ export interface AddCommentInput {
   author: string;
   message: string;
 }
+
+export type TaskSortOrder = "newest" | "reward_desc" | "deadline_asc";
+
+export interface ListTasksQuery {
+  /** Case-insensitive substring match against title and description. */
+  search?: string;
+  minReward?: number;
+  maxReward?: number;
+  difficulty?: TaskDifficulty;
+  /** Matches tasks whose technologies list includes this value (case-insensitive). */
+  technology?: string;
+  /** Case-insensitive substring match against organization. */
+  organization?: string;
+  sort?: TaskSortOrder;
+  /** 1-based page number. Defaults to 1. */
+  page?: number;
+  /** Items per page. Defaults to 10, clamped to [1, 50]. */
+  pageSize?: number;
+}
+
+export interface ListTasksResult {
+  tasks: TaskRecord[];
+  total: number;
+  page: number;
+  pageSize: number;
+  totalPages: number;
+}
