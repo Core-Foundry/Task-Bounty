@@ -118,6 +118,19 @@ jobs:
           fi
 
       # -----------------------------------
+      # Regression tests
+      # -----------------------------------
+      - name: Run regression tests
+        run: |
+          if [ "${{ steps.pm.outputs.manager }}" = "pnpm" ]; then
+            pnpm test -- src/test/regression.test.ts
+          elif [ "${{ steps.pm.outputs.manager }}" = "yarn" ]; then
+            yarn test src/test/regression.test.ts
+          else
+            npm test -- src/test/regression.test.ts
+          fi
+
+      # -----------------------------------
       # Build check
       # -----------------------------------
       - name: Build frontend
