@@ -41,10 +41,12 @@ describe("auth integration flow", () => {
 
     now += 31 * 60 * 1000;
 
-    expect(auth.accessProtectedRoute(session.sessionId).allowed).toBe(false);
-    expect(auth.accessProtectedRoute(session.sessionId).reason).toBe(
-      "session-expired",
-    );
+    // A single call: accessProtectedRoute deletes the session as a side
+    // effect of detecting expiry, so a second call would see it as missing
+    // rather than expired.
+    const expiredAccess = auth.accessProtectedRoute(session.sessionId);
+    expect(expiredAccess.allowed).toBe(false);
+    expect(expiredAccess.reason).toBe("session-expired");
   });
 
   it("blocks protected routes without an active session", () => {

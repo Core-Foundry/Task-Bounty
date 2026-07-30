@@ -9,6 +9,7 @@ import { getPublicKey } from "@/hooks/stellar-wallets-kit";
 
 const NAV_ITEMS = [
   { name: "Overview", href: "/user/overview" },
+  { name: "Bounties", href: "/bounties" },
   { name: "Groups", href: "/groups" },
   { name: "Fundraising", href: "/fundraising" },
   { name: "Transactions", href: "/user/transactions" },
