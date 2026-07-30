@@ -47,3 +47,19 @@ export interface SubmitTaskInput {
   description: string;
   workUrl?: string;
 }
+
+export interface CommentRecord {
+  id: string;
+  taskId: string;
+  submissionId?: string;
+  author: string;
+  message: string;
+  createdAt: string;
+}
+
+export interface AddCommentInput {
+  taskId: string;
+  submissionId?: string;
+  author: string;
+  message: string;
+}

@@ -177,18 +177,20 @@ function removeFromStorage(): void {
  * ```
  */
 export function useNotificationPreferences(): UseNotificationPreferencesReturn {
+  // Lazy initializer reads localStorage on the client's first render, so no
+  // setState call is needed inside an effect to sync the loaded value in.
   const [preferences, setPreferences] = useState<NotificationPreferences>(
-    DEFAULT_NOTIFICATION_PREFERENCES,
+    () => loadFromStorage() ?? DEFAULT_NOTIFICATION_PREFERENCES,
   );
   const [isLoading, setIsLoading] = useState(true);
 
-  // Load persisted preferences on mount (client-side only).
+  // Preferences are already loaded via the lazy initializer above; this
+  // effect only flips the loading flag once the client has mounted so the
+  // server-rendered skeleton (loading=true) matches the initial client render.
+  // The flip is deferred to a microtask (rather than called synchronously in
+  // the effect body) to avoid cascading renders within the same commit.
   useEffect(() => {
-    const stored = loadFromStorage();
-    if (stored) {
-      setPreferences(stored);
-    }
-    setIsLoading(false);
+    queueMicrotask(() => setIsLoading(false));
   }, []);
 
   const toggle = useCallback((category: NotificationCategory) => {

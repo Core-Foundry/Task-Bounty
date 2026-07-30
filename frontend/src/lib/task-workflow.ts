@@ -1,4 +1,6 @@
 import type {
+  AddCommentInput,
+  CommentRecord,
   CreateTaskInput,
   SubmissionRecord,
   SubmitTaskInput,
@@ -6,6 +8,10 @@ import type {
   TaskStatus,
 } from "@/types/task-workflow";
 import type { ValidatedTaskSubmissionFile } from "@/lib/task-submission-files";
+import {
+  BROADCAST_USER_ID,
+  createNotification,
+} from "@/lib/notification-store";
 
 export const MIN_TASK_REWARD = 1_000_000;
 export const MAX_TASK_DEADLINE_OFFSET_SECONDS = 365 * 24 * 60 * 60;
@@ -25,9 +31,11 @@ const tasks = new Map<string, TaskRecord>();
 const submissions = new Map<string, SubmissionRecord>();
 const taskSubmissions = new Map<string, string[]>();
 const contributorSubmissions = new Map<string, Set<string>>();
+const comments = new Map<string, CommentRecord>();
 
 let nextTaskId = 1;
 let nextSubmissionId = 1;
+let nextCommentId = 1;
 
 function validateCreateTaskInput(input: CreateTaskInput, nowSeconds: number): string[] {
   const errors: string[] = [];
@@ -96,6 +104,17 @@ export function createTask(
   tasks.set(id, task);
   taskSubmissions.set(id, []);
   contributorSubmissions.set(id, new Set());
+
+  createNotification(
+    {
+      userId: BROADCAST_USER_ID,
+      type: "bounty_created",
+      title: "New bounty created",
+      message: `${task.title} is now open for submissions.`,
+      taskId: task.id,
+    },
+    now,
+  );
 
   return { ok: true, task };
 }
@@ -214,6 +233,18 @@ export function submitTaskWork(
 
   tasks.set(task.id, updatedTask);
 
+  createNotification(
+    {
+      userId: task.poster,
+      type: "submission_received",
+      title: "New submission received",
+      message: `${contributor} submitted work for "${task.title}".`,
+      taskId: task.id,
+      submissionId: submission.id,
+    },
+    now,
+  );
+
   return {
     ok: true,
     task: { ...updatedTask },
@@ -221,11 +252,196 @@ export function submitTaskWork(
   };
 }
 
+export function approveSubmission(
+  taskId: string,
+  submissionId: string,
+  actor: string,
+  now: Date = new Date(),
+): WorkflowResult<{ task: TaskRecord; submission: SubmissionRecord }> {
+  const taskResult = getTask(taskId);
+  if (!taskResult.ok) {
+    return taskResult;
+  }
+
+  const task = tasks.get(taskId)!;
+  const submission = submissions.get(submissionId);
+
+  if (!submission || submission.taskId !== taskId) {
+    return { ok: false, status: 404, error: "Submission not found." };
+  }
+
+  if (task.poster !== actor.trim()) {
+    return {
+      ok: false,
+      status: 409,
+      error: "Only the task poster can approve submissions.",
+    };
+  }
+
+  if (submission.status !== "pending") {
+    return {
+      ok: false,
+      status: 409,
+      error: "Submission has already been reviewed.",
+      details: [`Current status: ${submission.status}`],
+    };
+  }
+
+  const updatedSubmission: SubmissionRecord = { ...submission, status: "approved" };
+  submissions.set(submissionId, updatedSubmission);
+
+  const updatedTask: TaskRecord = { ...task, status: "completed" };
+  tasks.set(taskId, updatedTask);
+
+  createNotification(
+    {
+      userId: submission.contributor,
+      type: "submission_approved",
+      title: "Submission approved",
+      message: `Your submission for "${task.title}" was approved.`,
+      taskId: task.id,
+      submissionId: submission.id,
+    },
+    now,
+  );
+
+  createNotification(
+    {
+      userId: submission.contributor,
+      type: "reward_paid",
+      title: "Reward paid",
+      message: `You received the reward for "${task.title}".`,
+      taskId: task.id,
+      submissionId: submission.id,
+    },
+    now,
+  );
+
+  return { ok: true, task: updatedTask, submission: updatedSubmission };
+}
+
+export function rejectSubmission(
+  taskId: string,
+  submissionId: string,
+  actor: string,
+  now: Date = new Date(),
+): WorkflowResult<{ task: TaskRecord; submission: SubmissionRecord }> {
+  const taskResult = getTask(taskId);
+  if (!taskResult.ok) {
+    return taskResult;
+  }
+
+  const task = tasks.get(taskId)!;
+  const submission = submissions.get(submissionId);
+
+  if (!submission || submission.taskId !== taskId) {
+    return { ok: false, status: 404, error: "Submission not found." };
+  }
+
+  if (task.poster !== actor.trim()) {
+    return {
+      ok: false,
+      status: 409,
+      error: "Only the task poster can reject submissions.",
+    };
+  }
+
+  if (submission.status !== "pending") {
+    return {
+      ok: false,
+      status: 409,
+      error: "Submission has already been reviewed.",
+      details: [`Current status: ${submission.status}`],
+    };
+  }
+
+  const updatedSubmission: SubmissionRecord = { ...submission, status: "rejected" };
+  submissions.set(submissionId, updatedSubmission);
+
+  createNotification(
+    {
+      userId: submission.contributor,
+      type: "submission_rejected",
+      title: "Submission rejected",
+      message: `Your submission for "${task.title}" was rejected.`,
+      taskId: task.id,
+      submissionId: submission.id,
+    },
+    now,
+  );
+
+  return { ok: true, task: { ...task }, submission: updatedSubmission };
+}
+
+export function addComment(
+  input: AddCommentInput,
+  now: Date = new Date(),
+): WorkflowResult<{ comment: CommentRecord }> {
+  const taskResult = getTask(input.taskId);
+  if (!taskResult.ok) {
+    return taskResult;
+  }
+
+  const task = tasks.get(input.taskId)!;
+  const author = input.author.trim();
+
+  if (!author) {
+    return { ok: false, status: 400, error: "Comment author is required." };
+  }
+
+  if (!input.message.trim()) {
+    return { ok: false, status: 400, error: "Comment message is required." };
+  }
+
+  let submission: SubmissionRecord | undefined;
+  if (input.submissionId) {
+    submission = submissions.get(input.submissionId);
+    if (!submission || submission.taskId !== input.taskId) {
+      return { ok: false, status: 404, error: "Submission not found." };
+    }
+  }
+
+  const comment: CommentRecord = {
+    id: String(nextCommentId++),
+    taskId: input.taskId,
+    submissionId: input.submissionId,
+    author,
+    message: input.message.trim(),
+    createdAt: now.toISOString(),
+  };
+
+  comments.set(comment.id, comment);
+
+  const recipient = submission
+    ? author === submission.contributor
+      ? task.poster
+      : submission.contributor
+    : task.poster;
+
+  if (recipient !== author) {
+    createNotification(
+      {
+        userId: recipient,
+        type: "comment_added",
+        title: "New comment",
+        message: `${author} commented on "${task.title}".`,
+        taskId: task.id,
+        submissionId: input.submissionId,
+      },
+      now,
+    );
+  }
+
+  return { ok: true, comment };
+}
+
 export function resetTaskWorkflowStore() {
   tasks.clear();
   submissions.clear();
   taskSubmissions.clear();
   contributorSubmissions.clear();
+  comments.clear();
   nextTaskId = 1;
   nextSubmissionId = 1;
+  nextCommentId = 1;
 }
