@@ -1,9 +1,9 @@
 use crate::base::errors::Error;
 use crate::base::events::{
     AdminTransferred, AutoshareCreated, AutoshareUpdated, ContractPaused, ContractUnpaused,
-    GroupActivated, GroupDeactivated, Withdrawal,
+    ContributorReputationUpdated, GroupActivated, GroupDeactivated, Withdrawal,
 };
-use crate::base::types::{AutoShareDetails, GroupMember, PaymentHistory};
+use crate::base::types::{AutoShareDetails, ContributorReputation, GroupMember, PaymentHistory};
 use crate::base::validation::{
     validate_fee, validate_name, validate_usage_count, validate_withdraw_amount,
 };
@@ -22,6 +22,8 @@ pub enum DataKey {
     GroupPaymentHistory(BytesN<32>),
     GroupMembers(BytesN<32>),
     IsPaused,
+    /// Stores ContributorReputation for each contributor address.
+    Reputation(Address),
 }
 
 pub fn create_autoshare(
@@ -808,5 +810,60 @@ fn validate_members(members: &Vec<GroupMember>) -> Result<(), Error> {
     if total_percentage != 100 {
         return Err(Error::InvalidTotalPercentage);
     }
+    Ok(())
+}
+
+// ============================================================================
+// Reputation System
+// ============================================================================
+
+/// Returns the current reputation for a contributor.
+/// Returns a default (score=0, completed_tasks=0) if no reputation exists yet.
+pub fn get_contributor_reputation(env: Env, contributor: Address) -> ContributorReputation {
+    let key = DataKey::Reputation(contributor.clone());
+    env.storage()
+        .persistent()
+        .get(&key)
+        .unwrap_or(ContributorReputation {
+            contributor,
+            score: 0,
+            completed_tasks: 0,
+        })
+}
+
+/// Increases a contributor's reputation score by the given amount.
+/// Increments completed_tasks by 1.
+/// Emits a ContributorReputationUpdated event.
+/// Designed to be extensible: future badge logic can be added here.
+pub fn increase_contributor_reputation(
+    env: Env,
+    contributor: Address,
+    score_increase: u32,
+) -> Result<(), Error> {
+    contributor.require_auth();
+
+    let key = DataKey::Reputation(contributor.clone());
+    let mut reputation: ContributorReputation = env
+        .storage()
+        .persistent()
+        .get(&key)
+        .unwrap_or(ContributorReputation {
+            contributor: contributor.clone(),
+            score: 0,
+            completed_tasks: 0,
+        });
+
+    reputation.score += score_increase;
+    reputation.completed_tasks += 1;
+
+    env.storage().persistent().set(&key, &reputation);
+
+    ContributorReputationUpdated {
+        contributor: contributor.clone(),
+        new_score: reputation.score,
+        completed_tasks: reputation.completed_tasks,
+    }
+    .publish(&env);
+
     Ok(())
 }

@@ -57,3 +57,14 @@ pub struct Withdrawal {
     pub recipient: Address,
     pub amount: i128,
 }
+
+/// Emitted when a contributor's reputation score changes.
+/// The new score reflects the updated reputation after a submission is accepted.
+#[contractevent(data_format = "single-value")]
+#[derive(Clone)]
+pub struct ContributorReputationUpdated {
+    #[topic]
+    pub contributor: Address,
+    pub new_score: u32,
+    pub completed_tasks: u32,
+}
