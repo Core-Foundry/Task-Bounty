@@ -19,7 +19,7 @@ import {
   getNextSecurityHeadersConfig,
   getSecurityHeaderValue,
   SECURITY_HEADERS,
-} from "../../../security-headers.mjs";
+} from "../../security-headers.mjs";
 
 // ---------------------------------------------------------------------------
 // 1. Next.js config wiring
