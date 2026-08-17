@@ -131,6 +131,30 @@ jobs:
           fi
 
       # -----------------------------------
+      # Coverage generation (refs #39)
+      # -----------------------------------
+      - name: Run tests with coverage
+        run: |
+          if [ "${{ steps.pm.outputs.manager }}" = "pnpm" ]; then
+            pnpm test:coverage
+          elif [ "${{ steps.pm.outputs.manager }}" = "yarn" ]; then
+            yarn test --coverage
+          else
+            npm run test:coverage
+          fi
+
+      # -----------------------------------
+      # Upload coverage report as a CI artifact (refs #39)
+      # -----------------------------------
+      - name: Upload coverage report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: frontend-coverage
+          path: frontend/coverage/
+          if-no-files-found: error
+
+      # -----------------------------------
       # Build check
       # -----------------------------------
       - name: Build frontend
