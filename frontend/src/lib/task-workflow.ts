@@ -17,6 +17,17 @@ import {
 } from "@/lib/notification-store";
 import { detectDuplicates } from "@/lib/duplicate-detection";
 import { enqueueModeration, resetModerationStore } from "@/lib/moderation-queue";
+import {
+  recordSubmission,
+  updateSubmissionStatus,
+  resetSubmissionHistoryStore,
+} from "@/lib/submission-history";
+import {
+  resetBookmarkStore,
+} from "@/lib/bookmark-store";
+import {
+  resetDraftStore,
+} from "@/lib/draft-autosave";
 
 export const MIN_TASK_REWARD = 1_000_000;
 export const MAX_TASK_DEADLINE_OFFSET_SECONDS = 365 * 24 * 60 * 60;
@@ -346,6 +357,20 @@ export function submitTaskWork(
   contributors.add(contributor);
   contributorSubmissions.set(task.id, contributors);
 
+  // Issue #150: Record submission in history index
+  recordSubmission(
+    submissionId,
+    task.id,
+    task.title,
+    contributor,
+    submission.workUrl,
+    submission.description,
+    submission.submittedAt,
+    submission.status,
+    task.reward,
+    task.organization,
+  );
+
   const nextStatus: TaskStatus = task.status === "open" ? "in_progress" : task.status;
   const updatedTask: TaskRecord = {
     ...task,
@@ -411,6 +436,9 @@ export function approveSubmission(
 
   const updatedSubmission: SubmissionRecord = { ...submission, status: "approved" };
   submissions.set(submissionId, updatedSubmission);
+
+  // Issue #150: Update submission history status
+  updateSubmissionStatus(submissionId, "approved");
 
   const updatedTask: TaskRecord = { ...task, status: "completed" };
   tasks.set(taskId, updatedTask);
@@ -479,6 +507,9 @@ export function rejectSubmission(
 
   const updatedSubmission: SubmissionRecord = { ...submission, status: "rejected" };
   submissions.set(submissionId, updatedSubmission);
+
+  // Issue #150: Update submission history status
+  updateSubmissionStatus(submissionId, "rejected");
 
   createNotification(
     {
@@ -566,6 +597,9 @@ export function resetTaskWorkflowStore() {
   nextTaskId = 1;
   nextSubmissionId = 1;
   nextCommentId = 1;
-  // Also reset moderation queue (imported in this module)
+  // Also reset related stores (imported in this module)
   resetModerationStore();
+  resetSubmissionHistoryStore();
+  resetBookmarkStore();
+  resetDraftStore();
 }
