@@ -37,6 +37,9 @@ import {
 import {
   resetDeadlineReminderStore,
 } from "@/lib/deadline-reminder";
+import {
+  resetOrganizationStore,
+} from "@/lib/organization-profile";
 
 export const MIN_TASK_REWARD = 1_000_000;
 export const MAX_TASK_DEADLINE_OFFSET_SECONDS = 365 * 24 * 60 * 60;
@@ -614,4 +617,5 @@ export function resetTaskWorkflowStore() {
   resetComparisonStore();
   resetReportStore();
   resetDeadlineReminderStore();
+  resetOrganizationStore();
 }
