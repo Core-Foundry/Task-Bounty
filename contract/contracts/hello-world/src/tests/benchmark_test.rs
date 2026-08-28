@@ -19,8 +19,11 @@
 ///   3. Identify unexpectedly expensive operations worth optimising
 #[cfg(test)]
 mod benchmark_tests {
+    extern crate std;
+    use std::println;
+
     use crate::mock_token::{MockToken, MockTokenClient};
-    use crate::tests::test_utils::{create_test_members, mint_tokens, setup_test_env};
+    use crate::test_utils::{create_test_members, mint_tokens, setup_test_env};
     use crate::{AutoShareContract, AutoShareContractClient};
     use soroban_sdk::{testutils::Address as _, Address, BytesN, Env, String, Vec};
 
@@ -29,11 +32,10 @@ mod benchmark_tests {
     // -------------------------------------------------------------------------
 
     fn print_resource_report(label: &str, env: &Env) {
-        let resources = env.budget().print();
         println!("\n========================================");
         println!("  BENCHMARK: {}", label);
         println!("========================================");
-        println!("{}", resources);
+        env.budget().print();
         println!("----------------------------------------\n");
     }
 
@@ -496,7 +498,7 @@ mod benchmark_tests {
         client.create(&id, &String::from_str(&b.env, "Reduce"), &creator, &5u32, &b.token);
 
         reset_budget(&b.env);
-        client.reduce_usage(&id);
+        client.reduce_usage(&id, &creator);
         print_resource_report("reduce_usage", &b.env);
     }
 

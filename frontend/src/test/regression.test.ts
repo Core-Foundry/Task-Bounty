@@ -15,6 +15,8 @@
  * 4. Reference any related PRs or commits
  */
 
+import fs from "node:fs";
+import path from "node:path";
 import { describe, expect, it } from "vitest";
 
 // ============================================================================
@@ -32,15 +34,15 @@ import { describe, expect, it } from "vitest";
 
 describe("Regression: Issue #82 - Security Headers", () => {
   it("should have security headers module available", () => {
-    // This test verifies the security headers module exists and can be imported
-    // The actual header value tests are in security-headers.test.ts
-    expect(() => import("../../../security-headers.mjs")).not.toThrow();
+    // This test verifies the security headers module exists
+    const filePath = path.resolve(__dirname, "../../security-headers.mjs");
+    expect(fs.existsSync(filePath)).toBe(true);
   });
 
   it("should have security header tests in place", () => {
     // This test ensures the dedicated security header test file exists
-    // and is being run as part of the test suite
-    expect(() => import("../lib/security-headers.test.ts")).not.toThrow();
+    const filePath = path.resolve(__dirname, "../lib/security-headers.test.ts");
+    expect(fs.existsSync(filePath)).toBe(true);
   });
 });
 
@@ -64,14 +66,17 @@ describe("Regression: Issue #82 - Security Headers", () => {
 describe("Regression: Issue #83 - Form Accessibility", () => {
   it("should have accessibility tests for TaskFilter component", () => {
     // Verifies the TaskFilter accessibility test suite exists
-    expect(() => import("../components/TaskFilter.test.tsx")).not.toThrow();
+    const filePath = path.resolve(__dirname, "../components/TaskFilter.test.tsx");
+    expect(fs.existsSync(filePath)).toBe(true);
   });
 
   it("should have accessibility tests for WaitlistHeroSection component", () => {
     // Verifies the WaitlistHeroSection accessibility test suite exists
-    expect(() =>
-      import("../app/(marketing)/landing/components/WaitlistHeroSection.test.tsx"),
-    ).not.toThrow();
+    const filePath = path.resolve(
+      __dirname,
+      "../app/(marketing)/landing/components/WaitlistHeroSection.test.tsx",
+    );
+    expect(fs.existsSync(filePath)).toBe(true);
   });
 
   it("should prevent duplicate accessibility attributes", () => {
