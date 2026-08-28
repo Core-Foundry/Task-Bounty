@@ -6,7 +6,7 @@
 mod validation_tests {
     use crate::base::types::GroupMember;
     use crate::mock_token::{MockToken, MockTokenClient};
-    use crate::tests::test_utils::{mint_tokens, setup_test_env};
+    use crate::test_utils::{mint_tokens, setup_test_env};
     use crate::{AutoShareContract, AutoShareContractClient};
     use soroban_sdk::{testutils::Address as _, Address, BytesN, Env, String, Vec};
 

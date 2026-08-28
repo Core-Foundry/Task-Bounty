@@ -763,7 +763,6 @@ describe("validateCreateTaskForm", () => {
   });
 
   it("accepts valid token address", () => {
-    const result = validateCreateTaskForm(VALID_TASK_DATA_WITH_OPTIONALS);
     const result = validateCreateTaskForm({
       ...validForm,
       token: "GABCDEFGHIJKLMNOPQRSTUVWXYZ234567ABCDEFGHIJKLMNOPQRSTUVW",
@@ -844,7 +843,6 @@ describe("validateWorkSubmissionForm", () => {
   });
 
   it("accepts valid contributor address", () => {
-    const result = validateWorkSubmissionForm(VALID_WORK_SUBMISSION_WITH_CONTRIBUTOR);
     const result = validateWorkSubmissionForm({
       ...validForm,
       contributorAddress: "GABCDEFGHIJKLMNOPQRSTUVWXYZ234567ABCDEFGHIJKLMNOPQRSTUVW",
