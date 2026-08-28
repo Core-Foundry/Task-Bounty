@@ -15,6 +15,28 @@ import {
   BROADCAST_USER_ID,
   createNotification,
 } from "@/lib/notification-store";
+import { detectDuplicates } from "@/lib/duplicate-detection";
+import { enqueueModeration, resetModerationStore } from "@/lib/moderation-queue";
+import {
+  recordSubmission,
+  updateSubmissionStatus,
+  resetSubmissionHistoryStore,
+} from "@/lib/submission-history";
+import {
+  resetBookmarkStore,
+} from "@/lib/bookmark-store";
+import {
+  resetDraftStore,
+} from "@/lib/draft-autosave";
+import {
+  resetComparisonStore,
+} from "@/lib/grant-comparison";
+import {
+  resetReportStore,
+} from "@/lib/grant-report-store";
+import {
+  resetDeadlineReminderStore,
+} from "@/lib/deadline-reminder";
 
 export const MIN_TASK_REWARD = 1_000_000;
 export const MAX_TASK_DEADLINE_OFFSET_SECONDS = 365 * 24 * 60 * 60;
@@ -120,6 +142,34 @@ export function createTask(
   tasks.set(id, task);
   taskSubmissions.set(id, []);
   contributorSubmissions.set(id, new Set());
+
+  // Issue #154: Duplicate detection — flag but don't block creation
+  const dupResult = detectDuplicates(
+    { title: task.title, organization: task.organization, description: task.description },
+    Array.from(tasks.values()).filter((t) => t.id !== id),
+  );
+  if (dupResult.hasDuplicates) {
+    for (const match of dupResult.matches) {
+      enqueueModeration({
+        type: "duplicate_flag",
+        targetId: id,
+        title: `Duplicate: "${task.title}"`,
+        description: `Potential duplicate of #${match.existingTaskId} "${match.existingTitle}" (${match.reason})`,
+        reportedBy: "system",
+        severity: match.confidence >= 0.8 ? 4 : 3,
+      });
+    }
+  }
+
+  // Issue #159: Enqueue newly created task for admin moderation review
+  enqueueModeration({
+    type: "task_created",
+    targetId: id,
+    title: `New task: ${task.title}`,
+    description: `Posted by ${task.poster}. Reward: ${task.reward} stroops.`,
+    reportedBy: "system",
+    severity: 1,
+  });
 
   createNotification(
     {
@@ -316,6 +366,20 @@ export function submitTaskWork(
   contributors.add(contributor);
   contributorSubmissions.set(task.id, contributors);
 
+  // Issue #150: Record submission in history index
+  recordSubmission(
+    submissionId,
+    task.id,
+    task.title,
+    contributor,
+    submission.workUrl,
+    submission.description,
+    submission.submittedAt,
+    submission.status,
+    task.reward,
+    task.organization,
+  );
+
   const nextStatus: TaskStatus = task.status === "open" ? "in_progress" : task.status;
   const updatedTask: TaskRecord = {
     ...task,
@@ -381,6 +445,9 @@ export function approveSubmission(
 
   const updatedSubmission: SubmissionRecord = { ...submission, status: "approved" };
   submissions.set(submissionId, updatedSubmission);
+
+  // Issue #150: Update submission history status
+  updateSubmissionStatus(submissionId, "approved");
 
   const updatedTask: TaskRecord = { ...task, status: "completed" };
   tasks.set(taskId, updatedTask);
@@ -449,6 +516,9 @@ export function rejectSubmission(
 
   const updatedSubmission: SubmissionRecord = { ...submission, status: "rejected" };
   submissions.set(submissionId, updatedSubmission);
+
+  // Issue #150: Update submission history status
+  updateSubmissionStatus(submissionId, "rejected");
 
   createNotification(
     {
@@ -536,4 +606,12 @@ export function resetTaskWorkflowStore() {
   nextTaskId = 1;
   nextSubmissionId = 1;
   nextCommentId = 1;
+  // Also reset related stores (imported in this module)
+  resetModerationStore();
+  resetSubmissionHistoryStore();
+  resetBookmarkStore();
+  resetDraftStore();
+  resetComparisonStore();
+  resetReportStore();
+  resetDeadlineReminderStore();
 }
