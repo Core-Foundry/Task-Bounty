@@ -28,6 +28,15 @@ import {
 import {
   resetDraftStore,
 } from "@/lib/draft-autosave";
+import {
+  resetComparisonStore,
+} from "@/lib/grant-comparison";
+import {
+  resetReportStore,
+} from "@/lib/grant-report-store";
+import {
+  resetDeadlineReminderStore,
+} from "@/lib/deadline-reminder";
 
 export const MIN_TASK_REWARD = 1_000_000;
 export const MAX_TASK_DEADLINE_OFFSET_SECONDS = 365 * 24 * 60 * 60;
@@ -602,4 +611,7 @@ export function resetTaskWorkflowStore() {
   resetSubmissionHistoryStore();
   resetBookmarkStore();
   resetDraftStore();
+  resetComparisonStore();
+  resetReportStore();
+  resetDeadlineReminderStore();
 }
