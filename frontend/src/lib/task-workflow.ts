@@ -15,6 +15,8 @@ import {
   BROADCAST_USER_ID,
   createNotification,
 } from "@/lib/notification-store";
+import { detectDuplicates } from "@/lib/duplicate-detection";
+import { enqueueModeration, resetModerationStore } from "@/lib/moderation-queue";
 
 export const MIN_TASK_REWARD = 1_000_000;
 export const MAX_TASK_DEADLINE_OFFSET_SECONDS = 365 * 24 * 60 * 60;
@@ -120,6 +122,34 @@ export function createTask(
   tasks.set(id, task);
   taskSubmissions.set(id, []);
   contributorSubmissions.set(id, new Set());
+
+  // Issue #154: Duplicate detection — flag but don't block creation
+  const dupResult = detectDuplicates(
+    { title: task.title, organization: task.organization, description: task.description },
+    Array.from(tasks.values()).filter((t) => t.id !== id),
+  );
+  if (dupResult.hasDuplicates) {
+    for (const match of dupResult.matches) {
+      enqueueModeration({
+        type: "duplicate_flag",
+        targetId: id,
+        title: `Duplicate: "${task.title}"`,
+        description: `Potential duplicate of #${match.existingTaskId} "${match.existingTitle}" (${match.reason})`,
+        reportedBy: "system",
+        severity: match.confidence >= 0.8 ? 4 : 3,
+      });
+    }
+  }
+
+  // Issue #159: Enqueue newly created task for admin moderation review
+  enqueueModeration({
+    type: "task_created",
+    targetId: id,
+    title: `New task: ${task.title}`,
+    description: `Posted by ${task.poster}. Reward: ${task.reward} stroops.`,
+    reportedBy: "system",
+    severity: 1,
+  });
 
   createNotification(
     {
@@ -536,4 +566,6 @@ export function resetTaskWorkflowStore() {
   nextTaskId = 1;
   nextSubmissionId = 1;
   nextCommentId = 1;
+  // Also reset moderation queue (imported in this module)
+  resetModerationStore();
 }
