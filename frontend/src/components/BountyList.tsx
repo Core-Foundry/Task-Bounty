@@ -63,7 +63,7 @@ export function BountyList({ tasks, pagination, isLoading, error, onPageChange }
                 <div>
                   <CardTitle className="text-lg font-bold text-white">{task.title}</CardTitle>
                   <CardDescription className="text-muted-foreground">
-                    {task.organization ? `${task.organization} • ` : ""}
+                    {task.organizationId ? `Org ${task.organizationId} • ` : ""}
                     Deadline {formatDeadline(task.deadline)}
                   </CardDescription>
                 </div>
