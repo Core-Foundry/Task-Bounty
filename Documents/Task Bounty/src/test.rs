@@ -1126,3 +1126,155 @@ fn test_contract_balance_validation() {
 }
 
 
+
+#[test]
+fn test_expiration_detection_past_deadline() {
+    let (env, poster, _, _, token_client, contract_id) = setup_test();
+    let client = TaskBountyContractClient::new(&env, &contract_id);
+
+    // Set initial time
+    env.ledger().with_mut(|li| {
+        li.timestamp = 10_000;
+    });
+
+    // Create task with deadline 1 hour from now
+    let task_id = client.create_task(
+        &poster,
+        &String::from_str(&env, "Test Expiration"),
+        &String::from_str(&env, "Task to test expiration detection"),
+        &token_client.address,
+        &10_000_000,
+        &(env.ledger().timestamp() + 3_600), // deadline at 13_600
+        &1,
+    );
+
+    let task = client.get_task(&task_id);
+    
+    // Task is not expired yet (current_time = 10_000, deadline = 13_600)
+    assert!(!crate::expiration::is_task_expired(&env, &task));
+
+    // Fast forward to exactly the deadline
+    env.ledger().with_mut(|li| {
+        li.timestamp = 13_600;
+    });
+
+    // At exact deadline, task is NOT expired (deadline is inclusive)
+    let task = client.get_task(&task_id);
+    assert!(!crate::expiration::is_task_expired(&env, &task));
+
+    // Fast forward 1 second past deadline
+    env.ledger().with_mut(|li| {
+        li.timestamp = 13_601;
+    });
+
+    // Now the task is expired
+    let task = client.get_task(&task_id);
+    assert!(crate::expiration::is_task_expired(&env, &task));
+}
+
+#[test]
+fn test_expiration_detection_future_deadline() {
+    let (env, poster, _, _, token_client, contract_id) = setup_test();
+    let client = TaskBountyContractClient::new(&env, &contract_id);
+
+    env.ledger().with_mut(|li| {
+        li.timestamp = 10_000;
+    });
+
+    let task_id = client.create_task(
+        &poster,
+        &String::from_str(&env, "Future Task"),
+        &String::from_str(&env, "Task with future deadline"),
+        &token_client.address,
+        &10_000_000,
+        &(env.ledger().timestamp() + 86_400), // 1 day from now
+        &1,
+    );
+
+    let task = client.get_task(&task_id);
+    
+    // Task is not expired (current_time = 10_000, deadline = 96_400)
+    assert!(!crate::expiration::is_task_expired(&env, &task));
+
+    // Fast forward half way to deadline
+    env.ledger().with_mut(|li| {
+        li.timestamp = 53_200;
+    });
+
+    let task = client.get_task(&task_id);
+    assert!(!crate::expiration::is_task_expired(&env, &task));
+}
+
+#[test]
+fn test_submit_work_uses_expiration_helper() {
+    // This test verifies that the expiration helper is correctly integrated
+    // into the submission flow
+    let (env, poster, contributor, _, token_client, contract_id) = setup_test();
+    let client = TaskBountyContractClient::new(&env, &contract_id);
+
+    env.ledger().with_mut(|li| {
+        li.timestamp = 10_000;
+    });
+
+    let task_id = client.create_task(
+        &poster,
+        &String::from_str(&env, "Integration Test"),
+        &String::from_str(&env, "Test expiration in submission"),
+        &token_client.address,
+        &10_000_000,
+        &(env.ledger().timestamp() + 1_000), // deadline at 11_000
+        &1,
+    );
+
+    // Submit work before deadline - should succeed
+    env.ledger().with_mut(|li| {
+        li.timestamp = 10_500;
+    });
+
+    let submission_id = client.submit_work(
+        &task_id,
+        &contributor,
+        &String::from_str(&env, "ipfs://work"),
+        &String::from_str(&env, "Completed on time"),
+    );
+
+    assert_eq!(submission_id, 1);
+    
+    let submission = client.get_submission(&submission_id);
+    assert_eq!(submission.status, SubmissionStatus::Pending);
+}
+
+#[test]
+#[should_panic(expected = "Error(Contract, #4)")]
+fn test_submit_work_after_expiration_fails() {
+    // Verifies that expired tasks reject submissions
+    let (env, poster, contributor, _, token_client, contract_id) = setup_test();
+    let client = TaskBountyContractClient::new(&env, &contract_id);
+
+    env.ledger().with_mut(|li| {
+        li.timestamp = 10_000;
+    });
+
+    let task_id = client.create_task(
+        &poster,
+        &String::from_str(&env, "Expired Task"),
+        &String::from_str(&env, "This task will expire"),
+        &token_client.address,
+        &10_000_000,
+        &(env.ledger().timestamp() + 1_000), // deadline at 11_000
+        &1,
+    );
+
+    // Fast forward past deadline
+    env.ledger().with_mut(|li| {
+        li.timestamp = 11_001;
+    });
+
+    // Attempt to submit work - should panic with TaskExpired error
+    client.submit_work(
+        &task_id,
+        &contributor,
+        &String::from_str(&env, "ipfs://late"),
+        &String::from_str(&env, "Too late"),
+    );
+}
