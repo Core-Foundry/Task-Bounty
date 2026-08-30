@@ -1,12 +1,32 @@
 "use client";
 
-import React from "react";
+import React, { useState, useEffect } from "react";
 import ActiveGroupsWidget from "./components/ActiveGroupsWidget";
 import ContributorProfileCard from "./components/ContributorProfileCard";
+import { UserActivityTimeline } from "@/components/UserActivityTimeline";
 import { motion } from "framer-motion";
 import { LayoutDashboard } from "lucide-react";
+import { getPublicKey } from "@/hooks/stellar-wallets-kit";
 
 export default function OverviewPage() {
+  const [walletAddress, setWalletAddress] = useState<string | null>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    async function checkWallet() {
+      const key = await getPublicKey();
+      if (!cancelled) {
+        setWalletAddress(key ?? "demo-user");
+      }
+    }
+
+    void checkWallet();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
   return (
     <div className="w-full">
       {/* Page Header */}
@@ -24,7 +44,7 @@ export default function OverviewPage() {
             Overview
           </h1>
           <p className="text-[#5A6578] text-xs sm:text-sm font-medium mt-0.5">
-            Welcome back — here&apos;s a snapshot of your groups
+            Welcome back — here&apos;s a snapshot of your groups & activities
           </p>
         </div>
       </motion.div>
@@ -32,6 +52,7 @@ export default function OverviewPage() {
       {/* Widgets Grid */}
       <div className="grid grid-cols-1 lg:grid-cols-1 gap-6 sm:gap-8">
         <ContributorProfileCard />
+        <UserActivityTimeline userId={walletAddress} />
         <ActiveGroupsWidget />
       </div>
     </div>
