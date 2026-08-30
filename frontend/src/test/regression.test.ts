@@ -17,6 +17,8 @@
 
 import { describe, expect, it } from "vitest";
 
+import packageJson from "../../package.json";
+
 // ============================================================================
 // Issue #82: Security Headers Implementation
 // ============================================================================
@@ -110,7 +112,6 @@ describe("Regression: Issue #83 - Form Accessibility", () => {
 describe("Regression: Issue #84 - Lint Check Enforcement", () => {
   it("should have lint script in package.json", () => {
     // Verifies the lint script exists and is properly configured
-    const packageJson = require("../../package.json");
     expect(packageJson.scripts.lint).toBeDefined();
     expect(packageJson.scripts.lint).toBe("eslint");
   });
