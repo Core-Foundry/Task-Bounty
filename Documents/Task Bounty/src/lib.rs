@@ -19,6 +19,7 @@ mod query;
 mod submission;
 mod dispute;
 mod events;
+mod expiration;
 
 #[cfg(test)]
 mod test;
