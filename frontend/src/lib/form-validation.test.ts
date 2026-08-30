@@ -34,21 +34,17 @@ import {
   INVALID_TASK_BAD_TOKEN,
   INVALID_TASK_EMPTY_DESCRIPTION,
   INVALID_TASK_EMPTY_TITLE,
-  INVALID_TASK_PAST_DEADLINE,
   INVALID_TASK_ZERO_REWARD,
   INVALID_TASK_ZERO_SUBMISSIONS,
   INVALID_WORK_SUBMISSION_BAD_CONTRIBUTOR,
   INVALID_WORK_SUBMISSION_EMPTY_DESCRIPTION,
   INVALID_WORK_SUBMISSION_EMPTY_URL,
   INVALID_WORK_SUBMISSION_INVALID_URL,
-  STANDARD_STELLAR_ADDRESS,
   VALID_EMAIL,
   VALID_TASK_DATA,
-  VALID_TASK_DATA_WITH_OPTIONALS,
   VALID_WORK_SUBMISSION,
-  VALID_WORK_SUBMISSION_WITH_CONTRIBUTOR,
 } from "@/test/mock-data";
-import { futureDeadline, pastDeadline } from "@/test/fixtures";
+import { pastDeadline } from "@/test/fixtures";
 
 // ============================================================================
 // validateRequired
@@ -763,7 +759,6 @@ describe("validateCreateTaskForm", () => {
   });
 
   it("accepts valid token address", () => {
-    const result = validateCreateTaskForm(VALID_TASK_DATA_WITH_OPTIONALS);
     const result = validateCreateTaskForm({
       ...validForm,
       token: "GABCDEFGHIJKLMNOPQRSTUVWXYZ234567ABCDEFGHIJKLMNOPQRSTUVW",
@@ -844,7 +839,6 @@ describe("validateWorkSubmissionForm", () => {
   });
 
   it("accepts valid contributor address", () => {
-    const result = validateWorkSubmissionForm(VALID_WORK_SUBMISSION_WITH_CONTRIBUTOR);
     const result = validateWorkSubmissionForm({
       ...validForm,
       contributorAddress: "GABCDEFGHIJKLMNOPQRSTUVWXYZ234567ABCDEFGHIJKLMNOPQRSTUVW",
