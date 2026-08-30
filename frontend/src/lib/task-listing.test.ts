@@ -1,6 +1,13 @@
-import { afterEach, describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-import { createTask, listTasks, resetTaskWorkflowStore } from "@/lib/task-workflow";
+import {
+  approveSubmission,
+  createTask,
+  listTasks,
+  pruneExpiredTaskRecords,
+  resetTaskWorkflowStore,
+  submitTaskWork,
+} from "@/lib/task-workflow";
 
 function futureDeadline(offsetSeconds: number) {
   return Math.floor(Date.now() / 1000) + offsetSeconds;
@@ -54,7 +61,12 @@ function seedTasks() {
 }
 
 describe("listTasks", () => {
+  beforeEach(() => {
+    vi.stubEnv("NEXT_PUBLIC_TASK_RETENTION_DAYS", "36500");
+  });
+
   afterEach(() => {
+    vi.unstubAllEnvs();
     resetTaskWorkflowStore();
   });
 
@@ -250,5 +262,64 @@ describe("listTasks", () => {
     expect(result.total).toBe(60);
     expect(result.tasks).toHaveLength(10);
     expect(elapsedMs).toBeLessThan(200);
+  });
+
+  it("removes inactive tasks once their retention window has expired", async () => {
+    vi.stubEnv("NEXT_PUBLIC_TASK_RETENTION_DAYS", "1");
+
+    const oldTaskResult = createTask(
+      {
+        poster: "GPOSTER",
+        title: "Old completed bounty",
+        description: "This should be cleaned up after retention.",
+        reward: 1_000_000,
+        deadline: futureDeadline(86_400),
+        maxSubmissions: 1,
+      },
+      new Date("2026-08-28T00:00:00.000Z"),
+    );
+    expect(oldTaskResult.ok).toBe(true);
+    if (!oldTaskResult.ok) return;
+
+    const activeTaskResult = createTask(
+      {
+        poster: "GPOSTER2",
+        title: "Active bounty",
+        description: "This should remain visible.",
+        reward: 2_000_000,
+        deadline: futureDeadline(86_400),
+        maxSubmissions: 1,
+      },
+      new Date("2026-08-30T00:00:00.000Z"),
+    );
+    expect(activeTaskResult.ok).toBe(true);
+    if (!activeTaskResult.ok) return;
+
+    const submissionResult = submitTaskWork(
+      {
+        taskId: oldTaskResult.task.id,
+        contributor: "CONTRIB",
+        description: "Done",
+      },
+      [],
+      new Date("2026-08-28T12:00:00.000Z"),
+    );
+
+    expect(submissionResult.ok).toBe(true);
+    if (!submissionResult.ok) return;
+
+    const approved = approveSubmission(
+      oldTaskResult.task.id,
+      submissionResult.submission.id,
+      oldTaskResult.task.poster,
+      new Date("2026-08-28T13:00:00.000Z"),
+    );
+    expect(approved.ok).toBe(true);
+
+    pruneExpiredTaskRecords(new Date("2026-08-30T12:00:00.000Z"));
+
+    const remaining = listTasks();
+    expect(remaining.total).toBe(1);
+    expect(remaining.tasks[0].title).toBe("Active bounty");
   });
 });
