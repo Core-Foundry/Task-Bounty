@@ -181,7 +181,7 @@ export function createTask(
     technologies: (input.technologies ?? [])
       .map((tech) => tech.trim())
       .filter((tech) => tech.length > 0),
-    organization: input.organization?.trim() ?? "",
+    organizationId: input.organizationId?.trim() ?? "",
   };
 
   tasks.set(id, task);
@@ -228,7 +228,7 @@ export function listTasks(query: ListTasksQuery = {}): ListTasksResult {
 
   const search = query.search?.trim().toLowerCase();
   const technology = query.technology?.trim().toLowerCase();
-  const organization = query.organization?.trim().toLowerCase();
+  const organizationId = query.organizationId?.trim();
 
   const filtered = Array.from(tasks.values()).filter((task) => {
     if (typeof query.minReward === "number" && task.reward < query.minReward) {
@@ -246,7 +246,7 @@ export function listTasks(query: ListTasksQuery = {}): ListTasksResult {
     ) {
       return false;
     }
-    if (organization && !task.organization.toLowerCase().includes(organization)) {
+    if (organizationId && task.organizationId !== organizationId) {
       return false;
     }
     if (search) {

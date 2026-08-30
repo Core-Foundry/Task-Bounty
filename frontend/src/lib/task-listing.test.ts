@@ -24,7 +24,7 @@ function seedTasks() {
       maxSubmissions: 3,
       difficulty: "advanced",
       technologies: ["Rust", "Soroban"],
-      organization: "Stellar Development Foundation",
+      organizationId: "org-sdf",
     },
     new Date("2026-01-01T00:00:00.000Z"),
   );
@@ -39,7 +39,7 @@ function seedTasks() {
       maxSubmissions: 2,
       difficulty: "beginner",
       technologies: ["Figma", "CSS"],
-      organization: "Acme DAO",
+      organizationId: "org-acme",
     },
     new Date("2026-01-02T00:00:00.000Z"),
   );
@@ -54,7 +54,7 @@ function seedTasks() {
       maxSubmissions: 1,
       difficulty: "intermediate",
       technologies: ["React", "TypeScript"],
-      organization: "Acme DAO",
+      organizationId: "org-acme",
     },
     new Date("2026-01-03T00:00:00.000Z"),
   );
@@ -84,7 +84,7 @@ describe("listTasks", () => {
     if (!result.ok) return;
     expect(result.task.difficulty).toBe("intermediate");
     expect(result.task.technologies).toEqual([]);
-    expect(result.task.organization).toBe("");
+    expect(result.task.organizationId).toBe("");
   });
 
   it("returns all tasks with no filters, newest first by default", () => {
@@ -127,10 +127,10 @@ describe("listTasks", () => {
     expect(result.tasks[0].title).toBe("Build a Soroban escrow contract");
   });
 
-  it("filters by organization (case-insensitive substring match)", () => {
+  it("filters by organization ID", () => {
     seedTasks();
 
-    const result = listTasks({ organization: "acme" });
+    const result = listTasks({ organizationId: "org-acme" });
 
     expect(result.tasks).toHaveLength(2);
     expect(result.tasks.map((t) => t.title).sort()).toEqual(
@@ -150,12 +150,12 @@ describe("listTasks", () => {
   it("combines multiple filters with AND semantics", () => {
     seedTasks();
 
-    const result = listTasks({ organization: "acme", difficulty: "beginner" });
+    const result = listTasks({ organizationId: "org-acme", difficulty: "beginner" });
 
     expect(result.tasks).toHaveLength(1);
     expect(result.tasks[0].title).toBe("Design a landing page");
 
-    const empty = listTasks({ organization: "acme", difficulty: "advanced" });
+    const empty = listTasks({ organizationId: "org-acme", difficulty: "advanced" });
     expect(empty.tasks).toHaveLength(0);
     expect(empty.total).toBe(0);
   });
@@ -245,7 +245,7 @@ describe("listTasks", () => {
         maxSubmissions: 1,
         difficulty: i % 2 === 0 ? "beginner" : "advanced",
         technologies: ["TypeScript"],
-        organization: "Bulk Org",
+        organizationId: "org-bulk",
       });
     }
 
