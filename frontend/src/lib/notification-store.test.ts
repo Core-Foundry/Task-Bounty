@@ -1,4 +1,4 @@
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import {
   BROADCAST_USER_ID,
@@ -7,13 +7,37 @@ import {
   listNotifications,
   markAllAsRead,
   markAsRead,
+  pruneExpiredNotifications,
   resetNotificationStore,
   subscribe,
 } from "@/lib/notification-store";
 
 describe("notification-store", () => {
+  beforeEach(() => {
+    vi.stubEnv("NEXT_PUBLIC_NOTIFICATION_RETENTION_DAYS", "36500");
+  });
+
   afterEach(() => {
+    vi.unstubAllEnvs();
     resetNotificationStore();
+  });
+
+  it("uses the configured retention window for historical notifications", () => {
+    vi.stubEnv("NEXT_PUBLIC_NOTIFICATION_RETENTION_DAYS", "1");
+    const now = new Date("2026-08-30T12:00:00.000Z");
+    createNotification(
+      { userId: "alice", type: "bounty_created", title: "Expired", message: "m" },
+      new Date("2026-08-28T12:00:00.000Z"),
+    );
+    createNotification(
+      { userId: "alice", type: "bounty_created", title: "Still active", message: "m" },
+      now,
+    );
+
+    pruneExpiredNotifications(now);
+
+    expect(listNotifications("alice")).toHaveLength(1);
+    expect(listNotifications("alice")[0].title).toBe("Still active");
   });
 
   it("creates a notification with an incrementing id and unread by default", () => {
@@ -129,5 +153,26 @@ describe("notification-store", () => {
     });
 
     expect(listener).toHaveBeenCalledTimes(1);
+  });
+
+  it("prunes expired notifications automatically", () => {
+    vi.stubEnv("NEXT_PUBLIC_NOTIFICATION_RETENTION_DAYS", "1");
+    const now = new Date();
+    const expiredAt = new Date(now.getTime() - 2 * 24 * 60 * 60 * 1000);
+    const activeAt = new Date(now.getTime() - 12 * 60 * 60 * 1000);
+
+    createNotification(
+      { userId: "alice", type: "bounty_created", title: "Expired", message: "old" },
+      expiredAt,
+    );
+    createNotification(
+      { userId: "alice", type: "bounty_created", title: "Still active", message: "new" },
+      activeAt,
+    );
+
+    pruneExpiredNotifications(now);
+
+    expect(listNotifications("alice")).toHaveLength(1);
+    expect(listNotifications("alice")[0].title).toBe("Still active");
   });
 });

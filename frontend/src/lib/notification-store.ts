@@ -10,6 +10,23 @@ export const BROADCAST_USER_ID = "*";
 const notifications = new Map<string, NotificationRecord>();
 let nextId = 1;
 
+const DEFAULT_NOTIFICATION_RETENTION_DAYS = 30;
+
+function readRetentionDays(envKey: string, fallback: number): number {
+  const raw = process.env?.[envKey];
+  const value = Number(raw ?? "");
+  return Number.isFinite(value) && value > 0 ? value : fallback;
+}
+
+export function getNotificationRetentionDays(): number {
+  return readRetentionDays(
+    "NEXT_PUBLIC_NOTIFICATION_RETENTION_DAYS",
+    DEFAULT_NOTIFICATION_RETENTION_DAYS,
+  );
+}
+
+export const NOTIFICATION_RETENTION_DAYS = getNotificationRetentionDays();
+
 // EventEmitter powers both the SSE stream and any in-process subscribers.
 // Raised to avoid MaxListenersExceededWarning when many clients connect.
 const emitter = new EventEmitter();
@@ -21,6 +38,30 @@ function isForUser(record: NotificationRecord, userId: string): boolean {
   return record.userId === userId || record.userId === BROADCAST_USER_ID;
 }
 
+function isExpiredNotification(record: NotificationRecord, now: Date): boolean {
+  const createdAt = Date.parse(record.createdAt);
+  if (!Number.isFinite(createdAt)) {
+    return false;
+  }
+
+  const cutoff =
+    now.getTime() - getNotificationRetentionDays() * 24 * 60 * 60 * 1000;
+  return createdAt < cutoff;
+}
+
+export function pruneExpiredNotifications(now: Date = new Date()): number {
+  let removed = 0;
+
+  for (const [id, record] of notifications.entries()) {
+    if (isExpiredNotification(record, now)) {
+      notifications.delete(id);
+      removed += 1;
+    }
+  }
+
+  return removed;
+}
+
 /**
  * Create a notification and publish it to any live subscribers.
  * `userId` may be a specific wallet address or `BROADCAST_USER_ID` ("*")
@@ -30,6 +71,8 @@ export function createNotification(
   input: CreateNotificationInput,
   now: Date = new Date(),
 ): NotificationRecord {
+  pruneExpiredNotifications(now);
+
   const record: NotificationRecord = {
     id: String(nextId++),
     userId: input.userId,
@@ -50,12 +93,16 @@ export function createNotification(
 
 /** List notifications for a user (specific + broadcast), newest first. */
 export function listNotifications(userId: string): NotificationRecord[] {
+  pruneExpiredNotifications(new Date());
+
   return Array.from(notifications.values())
     .filter((record) => isForUser(record, userId))
     .sort((a, b) => b.createdAt.localeCompare(a.createdAt));
 }
 
 export function getUnreadCount(userId: string): number {
+  pruneExpiredNotifications(new Date());
+
   let count = 0;
   for (const record of notifications.values()) {
     if (isForUser(record, userId) && !record.read) {
@@ -69,6 +116,8 @@ export function markAsRead(
   userId: string,
   notificationId: string,
 ): NotificationRecord | null {
+  pruneExpiredNotifications(new Date());
+
   const record = notifications.get(notificationId);
   if (!record || !isForUser(record, userId)) {
     return null;
@@ -84,6 +133,8 @@ export function markAsRead(
 }
 
 export function markAllAsRead(userId: string): number {
+  pruneExpiredNotifications(new Date());
+
   let updatedCount = 0;
   for (const [id, record] of notifications.entries()) {
     if (isForUser(record, userId) && !record.read) {
