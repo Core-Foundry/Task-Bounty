@@ -157,17 +157,20 @@ describe("notification-store", () => {
 
   it("prunes expired notifications automatically", () => {
     vi.stubEnv("NEXT_PUBLIC_NOTIFICATION_RETENTION_DAYS", "1");
+    const now = new Date();
+    const expiredAt = new Date(now.getTime() - 2 * 24 * 60 * 60 * 1000);
+    const activeAt = new Date(now.getTime() - 12 * 60 * 60 * 1000);
 
     createNotification(
       { userId: "alice", type: "bounty_created", title: "Expired", message: "old" },
-      new Date("2026-08-28T12:00:00.000Z"),
+      expiredAt,
     );
     createNotification(
       { userId: "alice", type: "bounty_created", title: "Still active", message: "new" },
-      new Date("2026-08-29T12:00:00.000Z"),
+      activeAt,
     );
 
-    pruneExpiredNotifications(new Date("2026-08-30T12:00:00.000Z"));
+    pruneExpiredNotifications(now);
 
     expect(listNotifications("alice")).toHaveLength(1);
     expect(listNotifications("alice")[0].title).toBe("Still active");

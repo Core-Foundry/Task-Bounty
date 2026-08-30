@@ -16,6 +16,8 @@
  */
 
 import { describe, expect, it } from "vitest";
+import { existsSync } from "node:fs";
+import path from "node:path";
 
 import packageJson from "../../package.json";
 
@@ -33,16 +35,18 @@ import packageJson from "../../package.json";
 // ============================================================================
 
 describe("Regression: Issue #82 - Security Headers", () => {
-  it("should have security headers module available", () => {
+  it("should have security headers module available", async () => {
     // This test verifies the security headers module exists and can be imported
     // The actual header value tests are in security-headers.test.ts
-    expect(() => import("../../../security-headers.mjs")).not.toThrow();
+    await expect(import("../../../security-headers.mjs")).resolves.toBeDefined();
   });
 
   it("should have security header tests in place", () => {
     // This test ensures the dedicated security header test file exists
     // and is being run as part of the test suite
-    expect(() => import("../lib/security-headers.test.ts")).not.toThrow();
+    expect(
+      existsSync(path.resolve(process.cwd(), "src/lib/security-headers.test.ts")),
+    ).toBe(true);
   });
 });
 
@@ -66,14 +70,21 @@ describe("Regression: Issue #82 - Security Headers", () => {
 describe("Regression: Issue #83 - Form Accessibility", () => {
   it("should have accessibility tests for TaskFilter component", () => {
     // Verifies the TaskFilter accessibility test suite exists
-    expect(() => import("../components/TaskFilter.test.tsx")).not.toThrow();
+    expect(
+      existsSync(path.resolve(process.cwd(), "src/components/TaskFilter.test.tsx")),
+    ).toBe(true);
   });
 
   it("should have accessibility tests for WaitlistHeroSection component", () => {
     // Verifies the WaitlistHeroSection accessibility test suite exists
-    expect(() =>
-      import("../app/(marketing)/landing/components/WaitlistHeroSection.test.tsx"),
-    ).not.toThrow();
+    expect(
+      existsSync(
+        path.resolve(
+          process.cwd(),
+          "src/app/(marketing)/landing/components/WaitlistHeroSection.test.tsx",
+        ),
+      ),
+    ).toBe(true);
   });
 
   it("should prevent duplicate accessibility attributes", () => {
