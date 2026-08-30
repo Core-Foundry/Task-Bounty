@@ -465,6 +465,39 @@ export function rejectSubmission(
   return { ok: true, task: { ...task }, submission: updatedSubmission };
 }
 
+/**
+ * Submission history for a contributor, newest first. Includes the task
+ * title so the UI can show one row per submission attempt.
+ */
+export function listContributorSubmissions(
+  contributor: string,
+  now: Date = new Date(),
+): WorkflowResult<{ submissions: Array<SubmissionRecord & { taskTitle: string; taskStatus: TaskStatus }> }> {
+  const who = contributor.trim();
+
+  if (!who) {
+    return {
+      ok: false,
+      status: 400,
+      error: "Contributor address is required.",
+    };
+  }
+
+  const rows = Array.from(submissions.values())
+    .filter((submission) => submission.contributor === who)
+    .sort((a, b) => b.submittedAt.localeCompare(a.submittedAt))
+    .map((submission) => {
+      const task = tasks.get(submission.taskId);
+      return {
+        ...submission,
+        taskTitle: task?.title ?? "",
+        taskStatus: task?.status ?? ("open" as TaskStatus),
+      };
+    });
+
+  return { ok: true, submissions: rows };
+}
+
 export function addComment(
   input: AddCommentInput,
   now: Date = new Date(),

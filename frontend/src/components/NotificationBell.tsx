@@ -7,6 +7,7 @@ import { useNotifications } from "@/hooks/useNotifications";
 import type { NotificationRecord } from "@/types/notification";
 
 const TYPE_LABELS: Record<NotificationRecord["type"], string> = {
+  grant_deadline_reminder: "Deadline reminder",
   bounty_created: "New bounty",
   submission_received: "New submission",
   submission_approved: "Approved",

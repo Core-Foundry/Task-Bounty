@@ -14,6 +14,7 @@ const NAV_ITEMS = [
   { name: "Fundraising", href: "/fundraising" },
   { name: "Transactions", href: "/user/transactions" },
   { name: "Completed Tasks", href: "/completed-tasks" },
+  { name: "My Submissions", href: "/my-submissions" },
   { name: "Profile Analytics", href: "#" },
 ];
 
