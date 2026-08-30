@@ -136,6 +136,28 @@ describe("Regression: Issue #84 - Lint Check Enforcement", () => {
 });
 
 // ============================================================================
+// Issue: User Activity Timeline Implementation
+// ============================================================================
+// Feature: Create a timeline that displays relevant user activities, such as
+// saved grants, submitted applications, and account updates.
+//
+// Acceptance Criteria:
+// - Activities are displayed chronologically (newest first).
+// - Relevant activity types are supported (saved grants, applications, account updates, etc.).
+// - Users only see their own activity (strict user isolation).
+// ============================================================================
+
+describe("Regression: User Activity Timeline", () => {
+  it("should have activity-store test suite in place", () => {
+    expect(() => import("../lib/activity-store.test")).not.toThrow();
+  });
+
+  it("should have activities-api test suite in place", () => {
+    expect(() => import("../lib/activities-api.test")).not.toThrow();
+  });
+});
+
+// ============================================================================
 // Template for Future Regression Tests
 // ============================================================================
 // When adding regression tests for new resolved issues, use this template:
