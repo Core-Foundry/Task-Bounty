@@ -23,6 +23,7 @@ async function createTaskRequest(overrides: Record<string, unknown> = {}) {
       body: JSON.stringify({
         poster: POSTER_ADDRESS,
         ...VALID_TASK_DATA,
+        reward: 1_000_000,
         ...overrides,
       }),
     }),

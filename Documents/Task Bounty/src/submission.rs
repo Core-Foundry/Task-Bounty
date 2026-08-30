@@ -2,6 +2,7 @@ use soroban_sdk::{panic_with_error, token, Address, Env, String};
 use crate::types::{Submission, SubmissionStatus, TaskStatus, Error};
 use crate::storage;
 use crate::events;
+use crate::expiration;
 
 /// Submit work for a task
 pub fn submit_work(
@@ -23,8 +24,8 @@ pub fn submit_work(
         panic_with_error!(env, Error::InvalidTaskStatus);
     }
 
-    // Check deadline
-    if env.ledger().timestamp() > task.deadline {
+    // Check deadline using the expiration helper
+    if expiration::is_task_expired(env, &task) {
         panic_with_error!(env, Error::TaskExpired);
     }
 

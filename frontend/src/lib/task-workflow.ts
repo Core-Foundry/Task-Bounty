@@ -41,9 +41,74 @@ const taskSubmissions = new Map<string, string[]>();
 const contributorSubmissions = new Map<string, Set<string>>();
 const comments = new Map<string, CommentRecord>();
 
+const DEFAULT_TASK_RETENTION_DAYS = 180;
+
+function readRetentionDays(envKey: string, fallback: number): number {
+  const raw = process.env?.[envKey];
+  const value = Number(raw ?? "");
+  return Number.isFinite(value) && value > 0 ? value : fallback;
+}
+
+export function getTaskRetentionDays(): number {
+  return readRetentionDays(
+    "NEXT_PUBLIC_TASK_RETENTION_DAYS",
+    DEFAULT_TASK_RETENTION_DAYS,
+  );
+}
+
+export const TASK_RETENTION_DAYS = getTaskRetentionDays();
+
 let nextTaskId = 1;
 let nextSubmissionId = 1;
 let nextCommentId = 1;
+
+function isFinalizedTask(task: TaskRecord): boolean {
+  return task.status === "completed" || task.status === "cancelled" || task.status === "disputed";
+}
+
+function isExpiredTaskRecord(task: TaskRecord, now: Date): boolean {
+  if (!isFinalizedTask(task)) {
+    return false;
+  }
+
+  const createdAt = Date.parse(task.createdAt);
+  if (!Number.isFinite(createdAt)) {
+    return false;
+  }
+
+  const cutoff = now.getTime() - getTaskRetentionDays() * 24 * 60 * 60 * 1000;
+  return createdAt < cutoff;
+}
+
+export function pruneExpiredTaskRecords(now: Date = new Date()): number {
+  let removed = 0;
+
+  for (const [taskId, task] of tasks.entries()) {
+    if (!isExpiredTaskRecord(task, now)) {
+      continue;
+    }
+
+    tasks.delete(taskId);
+    taskSubmissions.delete(taskId);
+    contributorSubmissions.delete(taskId);
+
+    for (const [submissionId, submission] of submissions.entries()) {
+      if (submission.taskId === taskId) {
+        submissions.delete(submissionId);
+      }
+    }
+
+    for (const [commentId, comment] of comments.entries()) {
+      if (comment.taskId === taskId) {
+        comments.delete(commentId);
+      }
+    }
+
+    removed += 1;
+  }
+
+  return removed;
+}
 
 function validateCreateTaskInput(input: CreateTaskInput, nowSeconds: number): string[] {
   const errors: string[] = [];
@@ -83,6 +148,8 @@ export function createTask(
   input: CreateTaskInput,
   now: Date = new Date(),
 ): WorkflowResult<{ task: TaskRecord }> {
+  pruneExpiredTaskRecords(now);
+
   const nowSeconds = Math.floor(now.getTime() / 1000);
   const errors = validateCreateTaskInput(input, nowSeconds);
 
@@ -114,7 +181,7 @@ export function createTask(
     technologies: (input.technologies ?? [])
       .map((tech) => tech.trim())
       .filter((tech) => tech.length > 0),
-    organization: input.organization?.trim() ?? "",
+    organizationId: input.organizationId?.trim() ?? "",
   };
 
   tasks.set(id, task);
@@ -136,6 +203,8 @@ export function createTask(
 }
 
 export function getTask(taskId: string): WorkflowResult<{ task: TaskRecord }> {
+  pruneExpiredTaskRecords(new Date());
+
   const task = tasks.get(taskId);
 
   if (!task) {
@@ -155,9 +224,11 @@ export function getTask(taskId: string): WorkflowResult<{ task: TaskRecord }> {
  * filter state changes.
  */
 export function listTasks(query: ListTasksQuery = {}): ListTasksResult {
+  pruneExpiredTaskRecords(new Date());
+
   const search = query.search?.trim().toLowerCase();
   const technology = query.technology?.trim().toLowerCase();
-  const organization = query.organization?.trim().toLowerCase();
+  const organizationId = query.organizationId?.trim();
 
   const filtered = Array.from(tasks.values()).filter((task) => {
     if (typeof query.minReward === "number" && task.reward < query.minReward) {
@@ -175,7 +246,7 @@ export function listTasks(query: ListTasksQuery = {}): ListTasksResult {
     ) {
       return false;
     }
-    if (organization && !task.organization.toLowerCase().includes(organization)) {
+    if (organizationId && task.organizationId !== organizationId) {
       return false;
     }
     if (search) {
@@ -463,6 +534,39 @@ export function rejectSubmission(
   );
 
   return { ok: true, task: { ...task }, submission: updatedSubmission };
+}
+
+/**
+ * Submission history for a contributor, newest first. Includes the task
+ * title so the UI can show one row per submission attempt.
+ */
+export function listContributorSubmissions(
+  contributor: string,
+  now: Date = new Date(),
+): WorkflowResult<{ submissions: Array<SubmissionRecord & { taskTitle: string; taskStatus: TaskStatus }> }> {
+  const who = contributor.trim();
+
+  if (!who) {
+    return {
+      ok: false,
+      status: 400,
+      error: "Contributor address is required.",
+    };
+  }
+
+  const rows = Array.from(submissions.values())
+    .filter((submission) => submission.contributor === who)
+    .sort((a, b) => b.submittedAt.localeCompare(a.submittedAt))
+    .map((submission) => {
+      const task = tasks.get(submission.taskId);
+      return {
+        ...submission,
+        taskTitle: task?.title ?? "",
+        taskStatus: task?.status ?? ("open" as TaskStatus),
+      };
+    });
+
+  return { ok: true, submissions: rows };
 }
 
 export function addComment(

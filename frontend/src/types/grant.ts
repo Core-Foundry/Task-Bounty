@@ -1,52 +1,39 @@
+export type GrantStatus = "saved" | "active" | "expired";
+
 /**
- * Grant records — funding awards tracked alongside tasks.
- *
- * The shape is split deliberately: `GrantRecord` is the full internal record,
- * and only the fields named in `GRANT_EXPORT_FIELDS` (see lib/grant-export.ts)
- * ever leave the system. Anything not on that list — reviewer notes, applicant
- * contact details, internal scoring — stays in.
+ * A grant the user has saved (bookmarked) or activated (applied for /
+ * is tracking). `deadline` is a Unix timestamp in seconds.
  */
-
-export type GrantStatus =
-  | "draft"
-  | "submitted"
-  | "under_review"
-  | "approved"
-  | "rejected"
-  | "disbursed";
-
-/** The full internal record. Not safe to hand out wholesale. */
 export interface GrantRecord {
   id: string;
+  /** Grant title, e.g. "Creative Europe – Co-operation Projects". */
   title: string;
-  /** Stellar G-address the grant pays out to. */
-  recipientAddress: string;
-  /** Public display name of the recipient. */
-  recipientName: string;
-  amount: number;
-  currency: string;
+  /** Funder or organisation offering the grant. */
+  funder: string;
+  /** Unix timestamp (seconds) of the application deadline. */
+  deadline: number;
   status: GrantStatus;
-  category: string;
-  createdAt: Date;
-  updatedAt: Date;
-
-  // ── Restricted: never exported ────────────────────────────────────────────
-  /** Applicant's private contact address. */
-  applicantEmail?: string;
-  /** Free-text reviewer commentary, often candid about the applicant. */
-  reviewerNotes?: string;
-  /** Internal scoring used to rank applications. */
-  internalScore?: number;
-  /** Identity/KYC reference held for compliance. */
-  kycReference?: string;
-  /** Bank details for off-chain disbursement. */
-  bankAccountNumber?: string;
+  /** Wallet address of the user who saved/activated the grant. */
+  owner: string;
+  createdAt: string;
 }
 
-/** Who is asking to export, and what they are allowed to do. */
-export type ExportRole = "admin" | "grant_manager" | "reviewer" | "contributor";
-
-export interface ExportRequester {
-  id: string;
-  role: ExportRole;
+/**
+ * Reminder timing configuration. `reminderOffsetsSeconds` lists how long
+ * before the deadline reminders fire, e.g. [7 days, 3 days, 24h, 6h].
+ * Duplicates are ignored; values must be positive.
+ */
+export interface ReminderConfig {
+  /** Offsets before the deadline (seconds) at which reminders fire. */
+  reminderOffsetsSeconds: number[];
 }
+
+export const DEFAULT_REMINDER_CONFIG: ReminderConfig = {
+  // 7 days, 3 days, 1 day, 6 hours before the deadline.
+  reminderOffsetsSeconds: [
+    7 * 24 * 60 * 60,
+    3 * 24 * 60 * 60,
+    24 * 60 * 60,
+    6 * 60 * 60,
+  ],
+};

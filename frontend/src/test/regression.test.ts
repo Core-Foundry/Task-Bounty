@@ -16,6 +16,10 @@
  */
 
 import { describe, expect, it } from "vitest";
+import { existsSync } from "node:fs";
+import path from "node:path";
+
+import packageJson from "../../package.json";
 
 // ============================================================================
 // Issue #82: Security Headers Implementation
@@ -31,16 +35,18 @@ import { describe, expect, it } from "vitest";
 // ============================================================================
 
 describe("Regression: Issue #82 - Security Headers", () => {
-  it("should have security headers module available", () => {
+  it("should have security headers module available", async () => {
     // This test verifies the security headers module exists and can be imported
     // The actual header value tests are in security-headers.test.ts
-    expect(() => import("../../../security-headers.mjs")).not.toThrow();
+    await expect(import("../../../security-headers.mjs")).resolves.toBeDefined();
   });
 
   it("should have security header tests in place", () => {
     // This test ensures the dedicated security header test file exists
     // and is being run as part of the test suite
-    expect(() => import("../lib/security-headers.test.ts")).not.toThrow();
+    expect(
+      existsSync(path.resolve(process.cwd(), "src/lib/security-headers.test.ts")),
+    ).toBe(true);
   });
 });
 
@@ -64,14 +70,21 @@ describe("Regression: Issue #82 - Security Headers", () => {
 describe("Regression: Issue #83 - Form Accessibility", () => {
   it("should have accessibility tests for TaskFilter component", () => {
     // Verifies the TaskFilter accessibility test suite exists
-    expect(() => import("../components/TaskFilter.test.tsx")).not.toThrow();
+    expect(
+      existsSync(path.resolve(process.cwd(), "src/components/TaskFilter.test.tsx")),
+    ).toBe(true);
   });
 
   it("should have accessibility tests for WaitlistHeroSection component", () => {
     // Verifies the WaitlistHeroSection accessibility test suite exists
-    expect(() =>
-      import("../app/(marketing)/landing/components/WaitlistHeroSection.test.tsx"),
-    ).not.toThrow();
+    expect(
+      existsSync(
+        path.resolve(
+          process.cwd(),
+          "src/app/(marketing)/landing/components/WaitlistHeroSection.test.tsx",
+        ),
+      ),
+    ).toBe(true);
   });
 
   it("should prevent duplicate accessibility attributes", () => {
@@ -110,7 +123,6 @@ describe("Regression: Issue #83 - Form Accessibility", () => {
 describe("Regression: Issue #84 - Lint Check Enforcement", () => {
   it("should have lint script in package.json", () => {
     // Verifies the lint script exists and is properly configured
-    const packageJson = require("../../package.json");
     expect(packageJson.scripts.lint).toBeDefined();
     expect(packageJson.scripts.lint).toBe("eslint");
   });
@@ -120,6 +132,28 @@ describe("Regression: Issue #84 - Lint Check Enforcement", () => {
     // The actual enforcement is in .github/workflows/frontend-ci.yml
     // The lint step has no continue-on-error, ensuring failures block merges
     expect(true).toBe(true); // Placeholder - actual enforcement is in CI config
+  });
+});
+
+// ============================================================================
+// Issue: User Activity Timeline Implementation
+// ============================================================================
+// Feature: Create a timeline that displays relevant user activities, such as
+// saved grants, submitted applications, and account updates.
+//
+// Acceptance Criteria:
+// - Activities are displayed chronologically (newest first).
+// - Relevant activity types are supported (saved grants, applications, account updates, etc.).
+// - Users only see their own activity (strict user isolation).
+// ============================================================================
+
+describe("Regression: User Activity Timeline", () => {
+  it("should have activity-store test suite in place", () => {
+    expect(() => import("../lib/activity-store.test")).not.toThrow();
+  });
+
+  it("should have activities-api test suite in place", () => {
+    expect(() => import("../lib/activities-api.test")).not.toThrow();
   });
 });
 

@@ -35,7 +35,7 @@ export async function GET(request: Request) {
       ? (difficultyParam as TaskDifficulty)
       : undefined,
     technology: searchParams.get("technology") ?? undefined,
-    organization: searchParams.get("organization") ?? undefined,
+    organizationId: searchParams.get("organizationId") ?? undefined,
     sort: VALID_SORTS.includes(sortParam as TaskSortOrder)
       ? (sortParam as TaskSortOrder)
       : undefined,
@@ -109,7 +109,7 @@ export async function POST(request: Request) {
     technologies: Array.isArray(payload.technologies)
       ? payload.technologies.map((tech) => String(tech))
       : undefined,
-    organization: payload.organization ? String(payload.organization) : undefined,
+    organizationId: payload.organizationId ? String(payload.organizationId) : undefined,
   });
 
   if (!result.ok) {

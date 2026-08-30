@@ -54,6 +54,11 @@ export const POSTER_ADDRESS = "GPOSTER1234567890ABCDEFGHIJKLMNOPQRSTUVWXYZ";
  */
 export const CONTRIBUTOR_ADDRESS = "GCONTRIB1234567890ABCDEFGHIJKLMNOPQRSTUVWXYZ";
 
+/**
+ * A second mock contributor address, for multi-contributor tests.
+ */
+export const OTHER_CONTRIBUTOR_ADDRESS = "GOTHERCONTRIB1234567890ABCDEFGHIJKLMNOP";
+
 // ============================================================================
 // Email Mocks
 // ============================================================================

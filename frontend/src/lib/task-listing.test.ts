@@ -1,6 +1,13 @@
-import { afterEach, describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-import { createTask, listTasks, resetTaskWorkflowStore } from "@/lib/task-workflow";
+import {
+  approveSubmission,
+  createTask,
+  listTasks,
+  pruneExpiredTaskRecords,
+  resetTaskWorkflowStore,
+  submitTaskWork,
+} from "@/lib/task-workflow";
 
 function futureDeadline(offsetSeconds: number) {
   return Math.floor(Date.now() / 1000) + offsetSeconds;
@@ -17,7 +24,7 @@ function seedTasks() {
       maxSubmissions: 3,
       difficulty: "advanced",
       technologies: ["Rust", "Soroban"],
-      organization: "Stellar Development Foundation",
+      organizationId: "org-sdf",
     },
     new Date("2026-01-01T00:00:00.000Z"),
   );
@@ -32,7 +39,7 @@ function seedTasks() {
       maxSubmissions: 2,
       difficulty: "beginner",
       technologies: ["Figma", "CSS"],
-      organization: "Acme DAO",
+      organizationId: "org-acme",
     },
     new Date("2026-01-02T00:00:00.000Z"),
   );
@@ -47,14 +54,19 @@ function seedTasks() {
       maxSubmissions: 1,
       difficulty: "intermediate",
       technologies: ["React", "TypeScript"],
-      organization: "Acme DAO",
+      organizationId: "org-acme",
     },
     new Date("2026-01-03T00:00:00.000Z"),
   );
 }
 
 describe("listTasks", () => {
+  beforeEach(() => {
+    vi.stubEnv("NEXT_PUBLIC_TASK_RETENTION_DAYS", "36500");
+  });
+
   afterEach(() => {
+    vi.unstubAllEnvs();
     resetTaskWorkflowStore();
   });
 
@@ -72,7 +84,7 @@ describe("listTasks", () => {
     if (!result.ok) return;
     expect(result.task.difficulty).toBe("intermediate");
     expect(result.task.technologies).toEqual([]);
-    expect(result.task.organization).toBe("");
+    expect(result.task.organizationId).toBe("");
   });
 
   it("returns all tasks with no filters, newest first by default", () => {
@@ -115,10 +127,10 @@ describe("listTasks", () => {
     expect(result.tasks[0].title).toBe("Build a Soroban escrow contract");
   });
 
-  it("filters by organization (case-insensitive substring match)", () => {
+  it("filters by organization ID", () => {
     seedTasks();
 
-    const result = listTasks({ organization: "acme" });
+    const result = listTasks({ organizationId: "org-acme" });
 
     expect(result.tasks).toHaveLength(2);
     expect(result.tasks.map((t) => t.title).sort()).toEqual(
@@ -138,12 +150,12 @@ describe("listTasks", () => {
   it("combines multiple filters with AND semantics", () => {
     seedTasks();
 
-    const result = listTasks({ organization: "acme", difficulty: "beginner" });
+    const result = listTasks({ organizationId: "org-acme", difficulty: "beginner" });
 
     expect(result.tasks).toHaveLength(1);
     expect(result.tasks[0].title).toBe("Design a landing page");
 
-    const empty = listTasks({ organization: "acme", difficulty: "advanced" });
+    const empty = listTasks({ organizationId: "org-acme", difficulty: "advanced" });
     expect(empty.tasks).toHaveLength(0);
     expect(empty.total).toBe(0);
   });
@@ -233,7 +245,7 @@ describe("listTasks", () => {
         maxSubmissions: 1,
         difficulty: i % 2 === 0 ? "beginner" : "advanced",
         technologies: ["TypeScript"],
-        organization: "Bulk Org",
+        organizationId: "org-bulk",
       });
     }
 
@@ -250,5 +262,64 @@ describe("listTasks", () => {
     expect(result.total).toBe(60);
     expect(result.tasks).toHaveLength(10);
     expect(elapsedMs).toBeLessThan(200);
+  });
+
+  it("removes inactive tasks once their retention window has expired", async () => {
+    vi.stubEnv("NEXT_PUBLIC_TASK_RETENTION_DAYS", "1");
+
+    const oldTaskResult = createTask(
+      {
+        poster: "GPOSTER",
+        title: "Old completed bounty",
+        description: "This should be cleaned up after retention.",
+        reward: 1_000_000,
+        deadline: futureDeadline(86_400),
+        maxSubmissions: 1,
+      },
+      new Date("2026-08-28T00:00:00.000Z"),
+    );
+    expect(oldTaskResult.ok).toBe(true);
+    if (!oldTaskResult.ok) return;
+
+    const activeTaskResult = createTask(
+      {
+        poster: "GPOSTER2",
+        title: "Active bounty",
+        description: "This should remain visible.",
+        reward: 2_000_000,
+        deadline: futureDeadline(86_400),
+        maxSubmissions: 1,
+      },
+      new Date("2026-08-30T00:00:00.000Z"),
+    );
+    expect(activeTaskResult.ok).toBe(true);
+    if (!activeTaskResult.ok) return;
+
+    const submissionResult = submitTaskWork(
+      {
+        taskId: oldTaskResult.task.id,
+        contributor: "CONTRIB",
+        description: "Done",
+      },
+      [],
+      new Date("2026-08-28T12:00:00.000Z"),
+    );
+
+    expect(submissionResult.ok).toBe(true);
+    if (!submissionResult.ok) return;
+
+    const approved = approveSubmission(
+      oldTaskResult.task.id,
+      submissionResult.submission.id,
+      oldTaskResult.task.poster,
+      new Date("2026-08-28T13:00:00.000Z"),
+    );
+    expect(approved.ok).toBe(true);
+
+    pruneExpiredTaskRecords(new Date("2026-08-30T12:00:00.000Z"));
+
+    const remaining = listTasks();
+    expect(remaining.total).toBe(1);
+    expect(remaining.tasks[0].title).toBe("Active bounty");
   });
 });

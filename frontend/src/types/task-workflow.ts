@@ -18,8 +18,8 @@ export interface TaskRecord {
   difficulty: TaskDifficulty;
   /** Technology/skill tags, e.g. ["Rust", "Soroban"]. */
   technologies: string[];
-  /** Name of the organization or team posting the bounty, if any. */
-  organization: string;
+  /** ID of the organization posting the bounty, if any. */
+  organizationId: string;
 }
 
 export interface SubmissionRecord {
@@ -48,7 +48,7 @@ export interface CreateTaskInput {
   maxSubmissions: number;
   difficulty?: TaskDifficulty;
   technologies?: string[];
-  organization?: string;
+  organizationId?: string;
 }
 
 export interface SubmitTaskInput {
@@ -84,8 +84,8 @@ export interface ListTasksQuery {
   difficulty?: TaskDifficulty;
   /** Matches tasks whose technologies list includes this value (case-insensitive). */
   technology?: string;
-  /** Case-insensitive substring match against organization. */
-  organization?: string;
+  /** Filter by organization ID. */
+  organizationId?: string;
   sort?: TaskSortOrder;
   /** 1-based page number. Defaults to 1. */
   page?: number;
