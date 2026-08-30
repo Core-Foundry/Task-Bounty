@@ -1,4 +1,5 @@
 export type NotificationType =
+  | "grant_deadline_reminder"
   | "bounty_created"
   | "submission_received"
   | "submission_approved"
