@@ -8,7 +8,9 @@
     "start": "next start",
     "lint": "eslint",
     "test": "vitest run",
-    "test:security-headers": "node --test security-headers.test.mjs"
+    "test:security-headers": "node --test security-headers.test.mjs",
+    "db:seed": "tsx scripts/seed-demo-data.ts",
+    "db:reset": "tsx scripts/seed-demo-data.ts --reset"
   },
   "dependencies": {
     "@creit.tech/stellar-wallets-kit": "^1.9.5",
@@ -50,6 +52,7 @@
     "eslint": "^9",
     "eslint-config-next": "16.1.3",
     "tailwindcss": "^4",
+    "tsx": "^4.23.13",
     "typescript": "^5",
     "vitest": "^4.1.10"
   },

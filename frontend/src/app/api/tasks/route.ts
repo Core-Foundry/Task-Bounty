@@ -1,4 +1,5 @@
 import { createTask, listTasks } from "@/lib/task-workflow";
+import { isDemoSeedEnabled, seedDemoData } from "@/lib/demo-seed";
 import { buildNoStoreJson } from "@/lib/api-response";
 import { checkRateLimit } from "@/lib/rate-limit";
 import type { TaskDifficulty, TaskSortOrder } from "@/types/task-workflow";
@@ -16,6 +17,9 @@ function parseOptionalNumber(value: string | null): number | undefined {
 }
 
 export async function GET(request: Request) {
+  if (isDemoSeedEnabled() && listTasks({}).total === 0) {
+    seedDemoData();
+  }
   const { response: rateLimitResponse, headers: rateLimitHeaders } =
     checkRateLimit(request);
   if (rateLimitResponse) {
