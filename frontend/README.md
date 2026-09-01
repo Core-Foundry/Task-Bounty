@@ -112,3 +112,13 @@ You can check out [the Next.js GitHub repository](https://github.com/vercel/next
 The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
 
 Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+
+## Local demo data
+
+The frontend includes deterministic in-memory demo data for local development. It covers two organizations and three bounties: an open bounty, a bounty awaiting review with a submission and comment, and a completed bounty with an approved submission. The seed also creates representative notifications and contributor activity history.
+
+From the `frontend` directory, run `pnpm db:seed` to reset the in-memory stores and load the sample records in the current process. Run `pnpm db:reset` when a clean in-memory state is needed. Because the project’s development stores are intentionally in memory, these commands are useful for scripts and tests; the data is not written to a production database or Stellar ledger.
+
+To have the task API load the sample data automatically when its process starts, set `NEXT_PUBLIC_SEED_DEMO_DATA=true` in the local environment. This flag is ignored in production, and normal development behavior remains unchanged when it is omitted.
+
+The reusable implementation is in `src/lib/demo-seed.ts`, making it straightforward to extend the fixtures or call `seedDemoData()` from additional local tooling.
