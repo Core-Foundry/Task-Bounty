@@ -182,11 +182,22 @@ All REST API endpoints in this project return JSON with the following top-level 
 
 - `ok` (boolean): `true` for success, `false` for errors
 - `error` (string): short human-readable summary
+- `code` (string): optional machine-readable error code for programmatic handling
 - `details` (string[]): optional list of validation-specific messages
 - `limits` (object): optional object describing relevant request limits
 
-This format is currently implemented for:
-- `POST /api/task-submissions/validate`
+This format is implemented for all REST API endpoints. Common error codes include:
+
+- `INVALID_FORM_DATA` - Request body is not valid multipart form data
+- `INVALID_JSON` - Request body is not valid JSON
+- `INVALID_PAYLOAD` - Request payload is invalid
+- `FILE_VALIDATION_FAILED` - File validation failed
+- `TASK_CREATION_FAILED` - Task creation failed
+- `TASK_NOT_FOUND` - Task not found
+- `SUBMISSION_FAILED` - Work submission failed
+- `STATS_FETCH_FAILED` - Failed to retrieve dashboard statistics
+- `HEALTH_CHECK_FAILED` - Failed to retrieve health status
+- `RATE_LIMIT_EXCEEDED` - Rate limit exceeded
 
 ---
 

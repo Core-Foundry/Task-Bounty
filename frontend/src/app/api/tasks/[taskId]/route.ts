@@ -1,5 +1,5 @@
 import { getTask } from "@/lib/task-workflow";
-import { buildNoStoreJson } from "@/lib/api-response";
+import { buildErrorResponse, buildNoStoreJson } from "@/lib/api-response";
 import { checkRateLimit } from "@/lib/rate-limit";
 
 export const runtime = "nodejs";
@@ -20,12 +20,12 @@ export async function GET(request: Request, context: RouteContext) {
   const result = getTask(taskId);
 
   if (!result.ok) {
-    return buildNoStoreJson(
-      {
-        ok: false,
-        error: result.error,
-      },
+    return buildErrorResponse(
+      result.error,
       result.status,
+      "TASK_NOT_FOUND",
+      undefined,
+      undefined,
       rateLimitHeaders,
     );
   }

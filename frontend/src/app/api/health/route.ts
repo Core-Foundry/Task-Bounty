@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 
 import { buildHealthReport } from "@/lib/health";
+import { buildErrorResponse } from "@/lib/api-response";
 import { checkRateLimit } from "@/lib/rate-limit";
 
 // Health must always reflect the live process, never a cached/static response.
@@ -13,8 +14,19 @@ export async function GET(request: Request) {
     return rateLimitResponse;
   }
 
-  return NextResponse.json(buildHealthReport(), {
-    status: 200,
-    headers: { "Cache-Control": "no-store", ...rateLimitHeaders },
-  });
+  try {
+    return NextResponse.json(buildHealthReport(), {
+      status: 200,
+      headers: { "Cache-Control": "no-store", ...rateLimitHeaders },
+    });
+  } catch (error) {
+    return buildErrorResponse(
+      "Failed to retrieve health status.",
+      500,
+      "HEALTH_CHECK_FAILED",
+      error instanceof Error ? [error.message] : undefined,
+      undefined,
+      rateLimitHeaders,
+    );
+  }
 }

@@ -1,3 +1,5 @@
+import { createTask } from "@/lib/task-workflow";
+import { buildErrorResponse, buildNoStoreJson } from "@/lib/api-response";
 import { createTask, listTasks } from "@/lib/task-workflow";
 import { isDemoSeedEnabled, seedDemoData } from "@/lib/demo-seed";
 import { buildNoStoreJson } from "@/lib/api-response";
@@ -75,24 +77,23 @@ export async function POST(request: Request) {
   try {
     body = await request.json();
   } catch {
-    return buildNoStoreJson(
-      {
-        ok: false,
-        error: "Request body must be valid JSON.",
-      },
+    return buildErrorResponse(
+      "Request body must be valid JSON.",
       400,
+      "INVALID_JSON",
+      undefined,
+      undefined,
       rateLimitHeaders,
     );
   }
 
   if (!body || typeof body !== "object") {
-    return buildNoStoreJson(
-      {
-        ok: false,
-        error: "Invalid task payload.",
-        details: ["Request body must be a JSON object."],
-      },
+    return buildErrorResponse(
+      "Invalid task payload.",
       400,
+      "INVALID_PAYLOAD",
+      ["Request body must be a JSON object."],
+      undefined,
       rateLimitHeaders,
     );
   }
@@ -117,13 +118,12 @@ export async function POST(request: Request) {
   });
 
   if (!result.ok) {
-    return buildNoStoreJson(
-      {
-        ok: false,
-        error: result.error,
-        details: result.details,
-      },
+    return buildErrorResponse(
+      result.error,
       result.status,
+      "TASK_CREATION_FAILED",
+      result.details,
+      undefined,
       rateLimitHeaders,
     );
   }
