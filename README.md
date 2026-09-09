@@ -405,3 +405,7 @@ Change the attribute value in the relevant component file. Do not add `role="ale
 |-----------|---------------|
 | `frontend/src/app/(marketing)/landing/components/WaitlistHeroSection.test.tsx` | label/id pairing, `aria-required`, `aria-describedby`, persistent live region, initial `aria-invalid` state |
 | `frontend/src/components/TaskFilter.test.tsx` | all 6 `for=` → `id=` associations for inputs and selects |
+
+## Code of Conduct
+
+See [CODE_OF_CONDUCT.md](CODE_OF_CONDUCT.md).
