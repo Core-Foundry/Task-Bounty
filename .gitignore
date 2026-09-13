@@ -1,5 +1,8 @@
 # Generated dependency vulnerability scan reports (local + CI artifacts)
 reports/
+# But allow the API route directory
+!frontend/src/app/api/reports/
+!frontend/src/app/api/reports/**
 
 # Environment / secrets — never commit real credentials
 .env
