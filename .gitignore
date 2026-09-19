@@ -2,11 +2,7 @@
 reports/
 
 # Environment / secrets — never commit real credentials
-.env
-.env.*
 !.env.example
-**/.env
-**/.env.*
 !**/.env.example
 
 # Common secret material
@@ -14,3 +10,5 @@ reports/
 *.key
 id_rsa
 id_ed25519
+config.bat
+node_modules

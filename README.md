@@ -359,6 +359,15 @@ MIT
 🤝 Contributing
 Contributions welcome! Please read CONTRIBUTING.md first.
 
+## 📖 Operations & Guides
+
+- [Database Backup and Restore Guide](DATABASE_BACKUP_RESTORE.md) — Comprehensive PostgreSQL backup, restore, safety precautions, and sample testing playbook
+- [Data Retention Rules](DATA_RETENTION.md) — Persistent record lifecycle and expiration policies
+- [Deployment Guide](DEPLOYMENT.md) — Smart contract and frontend deployment steps
+- [Setup Guide](SETUP.md) — Local development and environment setup
+- [Security Policy](SECURITY.md) — Security reporting and vulnerability disclosure
+
+
 📞 Contact
 GitHub: [Your GitHub]
 Discord: Stellar Discord
