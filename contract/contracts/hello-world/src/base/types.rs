@@ -28,3 +28,14 @@ pub struct PaymentHistory {
     pub amount_paid: i128,
     pub timestamp: u64,
 }
+
+/// Represents a contributor's reputation score.
+/// The score increases when a submission is accepted.
+/// Designed to be extensible for future badge logic.
+#[contracttype]
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct ContributorReputation {
+    pub contributor: Address,
+    pub score: u32,
+    pub completed_tasks: u32,
+}

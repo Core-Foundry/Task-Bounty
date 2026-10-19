@@ -235,6 +235,31 @@ impl AutoShareContract {
     pub fn reduce_usage(env: Env, id: BytesN<32>, caller: Address) {
         autoshare_logic::reduce_usage(env, id, caller).unwrap();
     }
+
+    // ============================================================================
+    // Reputation System
+    // ============================================================================
+
+    /// Returns the current reputation for a contributor.
+    /// Returns a default (score=0, completed_tasks=0) if no reputation exists yet.
+    pub fn get_contributor_reputation(
+        env: Env,
+        contributor: Address,
+    ) -> base::types::ContributorReputation {
+        autoshare_logic::get_contributor_reputation(env, contributor)
+    }
+
+    /// Increases a contributor's reputation score by the given amount.
+    /// Increments completed_tasks by 1.
+    /// Emits a ContributorReputationUpdated event.
+    /// Designed to be extensible: future badge logic can be added here.
+    pub fn increase_contributor_reputation(
+        env: Env,
+        contributor: Address,
+        score_increase: u32,
+    ) {
+        autoshare_logic::increase_contributor_reputation(env, contributor, score_increase).unwrap();
+    }
 }
 
 // 3. Link the tests (Requirement: Unit Tests)
