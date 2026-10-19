@@ -58,7 +58,7 @@ jobs:
       # -----------------------------------
       - name: Set up pnpm
         if: steps.pm.outputs.manager == 'pnpm'
-        uses: pnpm/action-setup@v4
+        uses: pnpm/action-setup@v6
         with:
           version: 10.26.1
 
